@@ -42,7 +42,5 @@ class CollectionReference extends Query {
 }
 
 class ServerValue {
-  static const Map<String, String> timestamp = const <String, String>{
-    '.sv': 'timestamp'
-  };
+  static const String timestamp = '.sv';
 }
