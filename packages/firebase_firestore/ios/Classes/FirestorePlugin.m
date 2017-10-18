@@ -21,6 +21,15 @@
 FIRQuery *getQuery(NSDictionary *arguments) {
   FIRQuery *query = [[FIRFirestore firestore] collectionWithPath:arguments[@"path"]];
   // TODO(jackson): Implement query parameters
+  NSDictionary *parameters = arguments[@"parameters"];
+  NSLog(@"Firestore query parameters: %@", parameters);
+  if (parameters != nil) {
+    NSNumber *limit = parameters[@"limit"];
+    if (limit != nil) {
+      NSLog(@"Firestore query limit: %@", limit);
+      query = [query queryLimitedTo:limit.integerValue];
+    }
+  }
   return query;
 }
 

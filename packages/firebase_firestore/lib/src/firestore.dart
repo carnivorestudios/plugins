@@ -39,14 +39,32 @@ class Firestore {
   static Firestore get instance => _instance;
 
   /// Gets a [CollectionReference] for the specified Firestore path.
-  CollectionReference collection(String path) {
+  CollectionReference collection(String path,
+      {Map<String, dynamic> parameters}) {
     assert(path != null);
-    return new CollectionReference._(this, path.split('/'));
+    return new CollectionReference._(this, path.split('/'),
+        parameters: parameters);
   }
 
   /// Gets a [DocumentReference] for the specified Firestore path.
   DocumentReference document(String path) {
     assert(path != null);
     return new DocumentReference._(this, path.split('/'));
+  }
+
+  Query query(String path, String orderBy, String startAt, int limit) {
+    assert(path != null);
+    if ((startAt != null) || limit != null) {
+      assert(orderBy != null);
+    }
+    Map<String, dynamic> parameters = <String, dynamic>{
+      'orderBy': orderBy,
+      'startAt': startAt,
+      'limit': limit
+    };
+    return new Query._(
+        firestore: this,
+        pathComponents: path.split('/'),
+        parameters: parameters);
   }
 }

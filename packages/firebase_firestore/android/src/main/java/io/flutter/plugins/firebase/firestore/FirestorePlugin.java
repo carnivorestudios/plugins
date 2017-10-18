@@ -4,7 +4,11 @@
 
 package io.flutter.plugins.firebase.firestore;
 
+import android.support.annotation.NonNull;
 import android.util.SparseArray;
+
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
@@ -117,6 +121,9 @@ public class FirestorePlugin implements MethodCallHandler {
         change.put("type", type);
         change.put("oldIndex", documentChange.getOldIndex());
         change.put("newIndex", documentChange.getNewIndex());
+//        DocumentSnapshot doc = documentChange.getDocument();
+//        Map<String, Object> docData = doc.getData();
+//        docData.put("key", doc.getId());
         change.put("document", documentChange.getDocument().getData());
         documentChanges.add(change);
       }
@@ -168,6 +175,25 @@ public class FirestorePlugin implements MethodCallHandler {
           result.success(null);
           break;
         }
+//      case "foo":
+//        final Map<String, Object> arguments = call.arguments();
+//        DocumentReference docRef = getDocumentReference(arguments);
+//        docRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+//          @Override
+//          public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+//            DocumentSnapshot snap = task.getResult();
+//            String path = (String) arguments.get("path");
+//            Query query = FirebaseFirestore.getInstance().collection(path).startAt(snap).limit(10); //.orderBy("timestamp").startAt(snap);
+//            query.get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+//              @Override
+//              public void onComplete(@NonNull Task<QuerySnapshot> task) {
+//                QuerySnapshot qsnap = task.getResult();
+//                //store snap in map
+//
+//              }
+//            });
+//          }
+//        });
       default:
         {
           result.notImplemented();

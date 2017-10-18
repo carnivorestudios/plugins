@@ -8,8 +8,8 @@ part of firebase_firestore;
 /// document references, and querying for documents (using the methods
 /// inherited from [Query]).
 class CollectionReference extends Query {
-  CollectionReference._(Firestore firestore, List<String> pathComponents)
-      : super._(firestore: firestore, pathComponents: pathComponents);
+  CollectionReference._(Firestore firestore, List<String> pathComponents, {Map<String, dynamic>parameters})
+      : super._(firestore: firestore, pathComponents: pathComponents, parameters: parameters);
 
   /// For subcollections, parent returns the containing DocumentReference.
   ///
