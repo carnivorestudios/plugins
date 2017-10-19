@@ -8,8 +8,8 @@ part of firebase_firestore;
 /// document references, and querying for documents (using the methods
 /// inherited from [Query]).
 class CollectionReference extends Query {
-  CollectionReference._(Firestore firestore, List<String> pathComponents)
-      : super._(firestore: firestore, pathComponents: pathComponents);
+  CollectionReference._(Firestore firestore, List<String> pathComponents, {Map<String, dynamic>parameters})
+      : super._(firestore: firestore, pathComponents: pathComponents, parameters: parameters);
 
   /// For subcollections, parent returns the containing DocumentReference.
   ///
@@ -42,7 +42,5 @@ class CollectionReference extends Query {
 }
 
 class ServerValue {
-  static const Map<String, String> timestamp = const <String, String>{
-    '.sv': 'timestamp'
-  };
+  static const String timestamp = '.sv';
 }

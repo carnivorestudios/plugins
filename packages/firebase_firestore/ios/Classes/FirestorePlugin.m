@@ -18,9 +18,35 @@
 }
 @end
 
+@interface FIRDocumentSnapshot (Flutter)
+- (NSDictionary<NSString *, id> *)flutterData;
+@end
+
+@implementation FIRDocumentSnapshot (Flutter)
+- (NSDictionary<NSString *, id> *)flutterData {
+  NSMutableDictionary *cleaned = self.data.mutableCopy;
+  for (NSString *key in self.data) {
+    id value = self.data[key];
+    if ([value isKindOfClass:NSDate.class]) {
+      cleaned[key] = @((long)([(NSDate *)value timeIntervalSince1970] * 1000));
+    }
+  }
+  return cleaned;
+}
+@end
+
 FIRQuery *getQuery(NSDictionary *arguments) {
   FIRQuery *query = [[FIRFirestore firestore] collectionWithPath:arguments[@"path"]];
   // TODO(jackson): Implement query parameters
+  NSDictionary *parameters = arguments[@"parameters"];
+  NSLog(@"Firestore query parameters: %@", parameters);
+  if (parameters != nil) {
+    NSNumber *limit = parameters[@"limit"];
+    if (limit != nil) {
+      NSLog(@"Firestore query limit: %@", limit);
+      query = [query queryLimitedTo:limit.integerValue];
+    }
+  }
   return query;
 }
 
@@ -54,6 +80,18 @@ FIRQuery *getQuery(NSDictionary *arguments) {
   return self;
 }
 
++ (NSDictionary *)replaceServerTimestamps:(NSDictionary *)data {
+  static NSString * const sServerTimestampKey = @".sv";
+  NSMutableDictionary *replaced = data.mutableCopy;
+  for (NSString *key in data) {
+    if ([data[key] isEqual:sServerTimestampKey]) {
+      NSLog(@"replacing value for key %@ with server timestamp", key);
+      replaced[key] = [FIRFieldValue fieldValueForServerTimestamp];
+    }
+  }
+  return replaced;
+}
+
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
   void (^defaultCompletionBlock)(NSError *) = ^(NSError *error) {
     result(error.flutterError);
@@ -61,7 +99,8 @@ FIRQuery *getQuery(NSDictionary *arguments) {
   if ([@"DocumentReference#setData" isEqualToString:call.method]) {
     NSString *path = call.arguments[@"path"];
     FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
-    [reference setData:call.arguments[@"data"] completion:defaultCompletionBlock];
+    NSDictionary *data = [FirestorePlugin replaceServerTimestamps:call.arguments[@"data"]];
+    [reference setData:data completion:defaultCompletionBlock];
   } else if ([@"Query#addSnapshotListener" isEqualToString:call.method]) {
     __block NSNumber *handle = [NSNumber numberWithInt:_nextListenerHandle++];
     id<FIRListenerRegistration> listener = [getQuery(call.arguments)
@@ -69,7 +108,7 @@ FIRQuery *getQuery(NSDictionary *arguments) {
           if (error) result(error.flutterError);
           NSMutableArray *documents = [NSMutableArray array];
           for (FIRDocumentSnapshot *document in snapshot.documents) {
-            [documents addObject:document.data];
+            [documents addObject:document.flutterData];
           }
           NSMutableArray *documentChanges = [NSMutableArray array];
           for (FIRDocumentChange *documentChange in snapshot.documentChanges) {
@@ -87,7 +126,7 @@ FIRQuery *getQuery(NSDictionary *arguments) {
             }
             [documentChanges addObject:@{
               @"type" : type,
-              @"document" : documentChange.document.data,
+              @"document" : documentChange.document.flutterData,
               @"oldIndex" : [NSNumber numberWithUnsignedInteger:documentChange.oldIndex],
               @"newIndex" : [NSNumber numberWithUnsignedInteger:documentChange.newIndex],
             }];
@@ -111,7 +150,7 @@ FIRQuery *getQuery(NSDictionary *arguments) {
           [self.channel invokeMethod:@"DocumentSnapshot"
                            arguments:@{
                              @"handle" : handle,
-                             @"data" : snapshot.exists ? snapshot.data : [NSNull null],
+                             @"data" : snapshot.exists ? snapshot.flutterData : [NSNull null],
                            }];
         }];
     _listeners[handle] = listener;
