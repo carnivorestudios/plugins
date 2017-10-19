@@ -4,41 +4,22 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:firebase_firestore/firebase_firestore.dart';
+import 'package:firestore_example/book.dart';
+import 'package:firestore_example/list_model.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   runApp(new MaterialApp(title: 'Firestore Example', home: new MyHomePage()));
 }
 
-class BookList extends StatelessWidget {
+class BookList extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return new StreamBuilder<QuerySnapshot>(
-      stream: Firestore.instance.collection('books').snapshots,
-      builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-        if (!snapshot.hasData) return const Text('Loading...');
-        return new ListView(
-          children: snapshot.data.documents.map((DocumentSnapshot document) {
-            return new ListTile(
-              title: new Text(document['message']),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
+  _BookListState createState() => new _BookListState();
 }
 
 class MyHomePage extends StatelessWidget {
   CollectionReference get messages => Firestore.instance.collection('messages');
-
-  Future<Null> _addMessage() async {
-    Firestore.instance
-        .collection('books')
-        .document()
-        .setData(<String, String>{'message': 'Hello world!'});
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +33,83 @@ class MyHomePage extends StatelessWidget {
         tooltip: 'Increment',
         child: new Icon(Icons.add),
       ),
+    );
+  }
+
+  Future<Null> _addMessage() async {
+    final DocumentReference ref = Firestore.instance.collection('books').document();
+    ref.setData(<String, String>{
+      'message': 'Hello world!',
+      'id': ref.path.split("/").last
+    });
+  }
+}
+
+class _BookListState extends State<BookList> {
+  ListModel<String> _bookList;
+  StreamSubscription<QuerySnapshot> _bookSub;
+  final GlobalKey<AnimatedListState> _listKey =
+  new GlobalKey<AnimatedListState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return new AnimatedList(
+      key: _listKey,
+      itemBuilder: _buildItem,
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _bookSub.cancel();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _bookList = new ListModel<String>(
+      listKey: _listKey,
+      removedItemBuilder: _buildRemovedItem,
+    );
+    _bookSub = Firestore.instance
+        .collection('books')
+        .snapshots
+        .listen((QuerySnapshot snap) {
+      setState(() {
+        snap.documentChanges.forEach((docChange) {
+          if (docChange.type == DocumentChangeType.added) {
+            _bookList.insert(docChange.newIndex, docChange.document.data["id"]);
+          } else if (docChange.type == DocumentChangeType.removed) {
+            _bookList.removeAt(docChange.oldIndex);
+          }
+        });
+      });
+    });
+  }
+
+  // Used to build list items that haven't been removed.
+  Widget _buildItem(
+      BuildContext context, int index, Animation<double> animation) {
+    return new BookWidget(
+      animation: animation,
+      bookModel: _bookList[index],
+    );
+  }
+
+  // Used to build an item after it has been removed from the list. This method is
+  // needed because a removed item remains  visible until its animation has
+  // completed (even though it's gone as far this ListModel is concerned).
+  // The widget will be used by the [AnimatedListState.removeItem] method's
+  // [AnimatedListRemovedItemBuilder] parameter.
+  Widget _buildRemovedItem(
+      String item,
+      BuildContext context,
+      Animation<double> animation,
+      ) {
+    return new BookWidget(
+      animation: animation,
+      bookModel: item,
     );
   }
 }
