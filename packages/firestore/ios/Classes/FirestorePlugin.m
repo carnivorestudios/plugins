@@ -138,7 +138,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     _listeners[handle] = listener;
     result(handle);
   } else if ([@"Query#getSnapshot" isEqualToString:call.method]) {
-    CFTimeInterval startTime = CACurrentMediaTime();
+    NSDate *now = [NSDate date];
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
       if (error != nil) {
         result(error.flutterError);
@@ -153,8 +153,8 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
             NSMutableDictionary *resultArguments = [NSMutableDictionary dictionary];
             resultArguments[@"documents"] = documents;
             resultArguments[@"documentChanges"] = @[];
-            CFTimeInterval elapsedTime = CACurrentMediaTime() - startTime;
             result(resultArguments);
+            NSLog(@"[FirestorePlugin] Query#getSnapshot took %f seconds fetching %ld items", -[now timeIntervalSinceNow], documents.count);
           }
           else {
             result(error.flutterError);
