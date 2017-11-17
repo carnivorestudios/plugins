@@ -103,7 +103,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   } else if ([@"DocumentReference#update" isEqualToString:call.method]) {
     FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
     NSDictionary *data = [FirestorePlugin replaceServerTimestamps:call.arguments[@"data"]];
-    [reference update:data completion:defaultCompletionBlock];
+    [reference updateData:data completion:defaultCompletionBlock];
   } else if ([@"DocumentReference#getSnapshot" isEqualToString:call.method]) {
       FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
       [reference getDocumentWithCompletion:^(FIRDocumentSnapshot * _Nullable snapshot, NSError * _Nullable error) {
