@@ -5,6 +5,7 @@
 #import "FirestorePlugin.h"
 
 #import <Firebase/Firebase.h>
+#import <QuartzCore/QuartzCore.h>
 
 typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
                               NSError *_Nullable error);
@@ -137,6 +138,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     _listeners[handle] = listener;
     result(handle);
   } else if ([@"Query#getSnapshot" isEqualToString:call.method]) {
+    CFTimeInterval startTime = CACurrentMediaTime();
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
       if (error != nil) {
         result(error.flutterError);
@@ -151,6 +153,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
             NSMutableDictionary *resultArguments = [NSMutableDictionary dictionary];
             resultArguments[@"documents"] = documents;
             resultArguments[@"documentChanges"] = @[];
+            CFTimeInterval elapsedTime = CACurrentMediaTime() - startTime;
             result(resultArguments);
           }
           else {
