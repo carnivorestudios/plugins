@@ -7,7 +7,7 @@
 #import <Firebase/Firebase.h>
 
 typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
-                                      NSError *_Nullable error);
+                              NSError *_Nullable error);
 
 @interface NSError (FlutterError)
 @property(readonly, nonatomic) FlutterError *flutterError;
@@ -54,8 +54,8 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FlutterMethodChannel *channel =
-      [FlutterMethodChannel methodChannelWithName:@"firestore"
-                                  binaryMessenger:[registrar messenger]];
+  [FlutterMethodChannel methodChannelWithName:@"firestore"
+                              binaryMessenger:[registrar messenger]];
   FirestorePlugin *instance = [[FirestorePlugin alloc] init];
   instance.channel = channel;
   [registrar addMethodCallDelegate:instance channel:channel];
@@ -105,17 +105,17 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     NSDictionary *data = [FirestorePlugin replaceServerTimestamps:call.arguments[@"data"]];
     [reference updateData:data completion:defaultCompletionBlock];
   } else if ([@"DocumentReference#getSnapshot" isEqualToString:call.method]) {
-      FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
-      [reference getDocumentWithCompletion:^(FIRDocumentSnapshot * _Nullable snapshot, NSError * _Nullable error) {
-          if (error != nil) result(error.flutterError);
-          else if (snapshot != nil) result([snapshot flutterSnapshotWithHandle:nil]);
-          else result(@{});
-      }];
+    FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
+    [reference getDocumentWithCompletion:^(FIRDocumentSnapshot * _Nullable snapshot, NSError * _Nullable error) {
+      if (error != nil) result(error.flutterError);
+      else if (snapshot != nil) result([snapshot flutterSnapshotWithHandle:nil]);
+      else result(@{});
+    }];
   } else if ([@"DocumentReference#delete" isEqualToString:call.method]) {
-      FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
-      [reference deleteDocumentWithCompletion:^(NSError * _Nullable error) {
-          defaultCompletionBlock(error);
-      }];
+    FIRDocumentReference *reference = [[FIRFirestore firestore] documentWithPath:path];
+    [reference deleteDocumentWithCompletion:^(NSError * _Nullable error) {
+      defaultCompletionBlock(error);
+    }];
   } else if ([@"Query#addSnapshotListener" isEqualToString:call.method]) {
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
       if (error != nil) {
@@ -131,7 +131,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   } else if ([@"Query#addDocumentListener" isEqualToString:call.method]) {
     __block NSNumber *handle = [NSNumber numberWithInt:_nextListenerHandle++];
     FIRDocumentReference *reference =
-        [[FIRFirestore firestore] documentWithPath:call.arguments[@"path"]];
+    [[FIRFirestore firestore] documentWithPath:call.arguments[@"path"]];
     FIRDocumentSnapshotBlock observer = [self getDocumentObserver:handle];
     id<FIRListenerRegistration> listener = [reference addSnapshotListener:observer];
     _listeners[handle] = listener;
@@ -233,7 +233,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
       NSLog(@"[FirestorePlugin] Error in document observer: %@", error.debugDescription);
     }
     if (snapshot == nil) return;
-    NSDictionary *document = snapshot.exists ? [snapshot flutterSnapshotWithHandle:handle] : nil;
+    NSDictionary *document = snapshot.exists ? [snapshot flutterSnapshotWithHandle:handle] : @{@"handle" : handle};
     [self.channel invokeMethod:@"DocumentSnapshot"
                      arguments:document];
   };
@@ -266,7 +266,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   NSString *orderBy = parameters[@"orderBy"];
   NSNumber *limit = parameters[@"limit"];
   NSNumber *descending = parameters[@"descending"];
-  BOOL desc = (descending != nil) ? descending.boolValue : false;
+  BOOL desc = descending.notNull ? descending.boolValue : false;
   FIRQuery *query = self;
   if (orderBy.notNull) query = [query queryOrderedByField:orderBy descending:desc];
   if (limit.notNull) query = [query queryLimitedTo:limit.integerValue];
@@ -317,3 +317,4 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   }];
 }
 @end
+
