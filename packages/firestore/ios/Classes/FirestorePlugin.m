@@ -140,13 +140,15 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   } else if ([@"Query#getSnapshot" isEqualToString:call.method]) {
     NSDate *now = [NSDate date];
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
-      NSLog(@"[FirestorePlugin] getQueryForPath took %f seconds", -[now timeIntervalSinceNow]);
+        NSTimeInterval getQueryForPathTime = [now timeIntervalSinceNow];
+      NSLog(@"[FirestorePlugin] getQueryForPath took %f seconds", getQueryForPath);
       if (error != nil) {
         result(error.flutterError);
       }
       else {
         [query getDocumentsWithCompletion:^(FIRQuerySnapshot * _Nullable querySnap, NSError * _Nullable error) {
-          NSLog(@"[FirestorePlugin] Query#getSnapshot took %f seconds", -[now timeIntervalSinceNow]);
+            NSTimeInterval getSnapshotTime = [now timeIntervalSinceNow];
+          NSLog(@"[FirestorePlugin] Query#getSnapshot took %f seconds", getSnapshotTime);
           if (querySnap != nil) {
             NSMutableArray *documents = [NSMutableArray array];
             for (FIRDocumentSnapshot *document in querySnap.documents) {
@@ -156,7 +158,20 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
             resultArguments[@"documents"] = documents;
             resultArguments[@"documentChanges"] = @[];
             result(resultArguments);
-            NSLog(@"[FirestorePlugin] Parsing finished, %f seconds parsing %ld items", -[now timeIntervalSinceNow], documents.count);
+              NSTimeInterval parsingTime = [now timeIntervalSinceNow];
+            NSLog(@"[FirestorePlugin] Parsing finished, %f seconds parsing %ld items", parsingTime, documents.count);
+              [[[FIRFirestore firestore collectionWithPath:@"timing"] documentWithAutoID] setData:@{
+                                                                                         @"createdAt": [FIRFieldValue fieldValueForServerTimestamp],
+                                                                                         @"query": getQueryForPathTime,
+                                                                                         @"snapshot": getSnapshotTime,
+                                                                                         @"parsing": parsingTime
+                                                                                         } completion:^(NSError * _Nullable error) {
+                                                                                             if (error != nil) {
+                                                                                                 NSLog(@"Error writing document: %@", error);
+                                                                                             } else {
+                                                                                                 NSLog(@"Document successfully written!");
+                                                                                             }
+                                                                                        }];
           }
           else {
             result(error.flutterError);
