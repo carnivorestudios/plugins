@@ -140,11 +140,13 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   } else if ([@"Query#getSnapshot" isEqualToString:call.method]) {
     NSDate *now = [NSDate date];
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
+      NSLog(@"[FirestorePlugin] getQueryForPath took %f seconds", -[now timeIntervalSinceNow]);
       if (error != nil) {
         result(error.flutterError);
       }
       else {
         [query getDocumentsWithCompletion:^(FIRQuerySnapshot * _Nullable querySnap, NSError * _Nullable error) {
+          NSLog(@"[FirestorePlugin] Query#getSnapshot took %f seconds", -[now timeIntervalSinceNow]);
           if (querySnap != nil) {
             NSMutableArray *documents = [NSMutableArray array];
             for (FIRDocumentSnapshot *document in querySnap.documents) {
@@ -154,7 +156,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
             resultArguments[@"documents"] = documents;
             resultArguments[@"documentChanges"] = @[];
             result(resultArguments);
-            NSLog(@"[FirestorePlugin] Query#getSnapshot took %f seconds fetching %ld items", -[now timeIntervalSinceNow], documents.count);
+            NSLog(@"[FirestorePlugin] Parsing finished, %f seconds parsing %ld items", -[now timeIntervalSinceNow], documents.count);
           }
           else {
             result(error.flutterError);
