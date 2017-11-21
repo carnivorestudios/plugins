@@ -69,6 +69,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     }
     _listeners = [NSMutableDictionary<NSNumber *, id<FIRListenerRegistration>> dictionary];
     _nextListenerHandle = 0;
+//    [FIRFirestore enableLogging:YES];
   }
   return self;
 }
@@ -137,6 +138,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     _listeners[handle] = listener;
     result(handle);
   } else if ([@"Query#getSnapshot" isEqualToString:call.method]) {
+    NSDate *now = [NSDate date];
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
       if (error != nil) {
         result(error.flutterError);
@@ -152,6 +154,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
             resultArguments[@"documents"] = documents;
             resultArguments[@"documentChanges"] = @[];
             result(resultArguments);
+            NSLog(@"get snapshot took %f", -[now timeIntervalSinceNow]);
           }
           else {
             result(error.flutterError);
@@ -203,6 +206,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   return ^(FIRQuerySnapshot * _Nullable snapshot, NSError * _Nullable error) {
     if (error) {
       NSLog(@"[FirestorePlugin] Error in query observer: %@", error.debugDescription);
+      [self.channel invokeMethod:@"QueryError" arguments: @{@"handle" : handle, @"error" : error.debugDescription}];
     }
     if (snapshot == nil) return;
     NSMutableArray *documents = [NSMutableArray array];
@@ -231,6 +235,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   return ^(FIRDocumentSnapshot *snapshot, NSError *_Nullable error) {
     if (error) {
       NSLog(@"[FirestorePlugin] Error in document observer: %@", error.debugDescription);
+      [self.channel invokeMethod:@"DocumentError" arguments: @{@"handle" : handle, @"error" : error.debugDescription}];
     }
     if (snapshot == nil) return;
     NSDictionary *document = snapshot.exists ? [snapshot flutterSnapshotWithHandle:handle] : nil;
