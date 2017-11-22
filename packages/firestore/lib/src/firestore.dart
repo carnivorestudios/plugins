@@ -2,6 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+
 part of firestore;
 
 /// The entry point for accessing a Firestore.
@@ -29,6 +30,18 @@ class Firestore {
           call.arguments,
         );
         _documentObservers[call.arguments['handle']].add(snapshot);
+      }
+      else if (call.method == 'QueryError') {
+        String error = call.arguments['error'] as String;
+        ChqLogger.instance.logError(error: error, errorContext: 'QueryError');
+        print('QUERY ERROR: $error');
+        _queryObservers[call.arguments['handle']].addError(error);
+      }
+      else if (call.method == 'DocumentError') {
+        String error = call.arguments['error'] as String;
+        ChqLogger.instance.logError(error: error, errorContext: 'DocumentError');
+        print('DOCUMENT ERROR: $error');
+        _documentObservers[call.arguments['handle']].addError(error);
       }
     });
   }

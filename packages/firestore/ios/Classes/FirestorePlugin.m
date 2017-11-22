@@ -5,7 +5,6 @@
 #import "FirestorePlugin.h"
 
 #import <Firebase/Firebase.h>
-#import <QuartzCore/QuartzCore.h>
 
 typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
                               NSError *_Nullable error);
@@ -70,6 +69,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     }
     _listeners = [NSMutableDictionary<NSNumber *, id<FIRListenerRegistration>> dictionary];
     _nextListenerHandle = 0;
+//    [FIRFirestore enableLogging:YES];
   }
   return self;
 }
@@ -219,6 +219,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   return ^(FIRQuerySnapshot * _Nullable snapshot, NSError * _Nullable error) {
     if (error) {
       NSLog(@"[FirestorePlugin] Error in query observer: %@", error.debugDescription);
+      [self.channel invokeMethod:@"QueryError" arguments: @{@"handle" : handle, @"error" : error.debugDescription}];
     }
     if (snapshot == nil) return;
     NSMutableArray *documents = [NSMutableArray array];
@@ -247,6 +248,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   return ^(FIRDocumentSnapshot *snapshot, NSError *_Nullable error) {
     if (error) {
       NSLog(@"[FirestorePlugin] Error in document observer: %@", error.debugDescription);
+      [self.channel invokeMethod:@"DocumentError" arguments: @{@"handle" : handle, @"error" : error.debugDescription}];
     }
     if (snapshot == nil) return;
     NSDictionary *document = snapshot.exists ? [snapshot flutterSnapshotWithHandle:handle] : @{@"handle" : handle};
@@ -333,4 +335,3 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   }];
 }
 @end
-
