@@ -138,15 +138,15 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     _listeners[handle] = listener;
     result(handle);
   } else if ([@"Query#getSnapshot" isEqualToString:call.method]) {
-    NSDate *now = [NSDate date];
+//    NSDate *now = [NSDate date];
     [self getQueryForPath:path withParamaters:parameters completion:^(FIRQuery * _Nullable query, NSError * _Nullable error) {
-      NSTimeInterval getQueryForPathTime = -[now timeIntervalSinceNow];
+//      NSTimeInterval getQueryForPathTime = -[now timeIntervalSinceNow];
       if (error != nil) {
         result(error.flutterError);
       }
       else {
         [query getDocumentsWithCompletion:^(FIRQuerySnapshot * _Nullable querySnap, NSError * _Nullable error) {
-          NSTimeInterval getSnapshotTime = -[now timeIntervalSinceNow];
+//          NSTimeInterval getSnapshotTime = -[now timeIntervalSinceNow];
           if (querySnap != nil) {
             NSMutableArray *documents = [NSMutableArray array];
             for (FIRDocumentSnapshot *document in querySnap.documents) {
@@ -156,18 +156,18 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
             resultArguments[@"documents"] = documents;
             resultArguments[@"documentChanges"] = @[];
             result(resultArguments);
-            NSTimeInterval parsingTime = -[now timeIntervalSinceNow];
-            FIRDocumentReference *reference = [[[FIRFirestore firestore] collectionWithPath:@"timing"] documentWithAutoID];
-            [reference setData:@{
-                                 @"createdAt": FIRFieldValue.fieldValueForServerTimestamp,
-                                 @"query": [NSNumber numberWithDouble:getQueryForPathTime],
-                                 @"snapshot": [NSNumber numberWithDouble:getSnapshotTime],
-                                 @"parsing": [NSNumber numberWithDouble:parsingTime]
-                                 }completion:^(NSError * _Nullable error) {
-                                     if (error != nil) {
-                                         NSLog(@"Error writing document: %@", error);
-                                     }
-                                 }];
+//            NSTimeInterval parsingTime = -[now timeIntervalSinceNow];
+//            FIRDocumentReference *reference = [[[FIRFirestore firestore] collectionWithPath:@"timing"] documentWithAutoID];
+//            [reference setData:@{
+//                                 @"createdAt": FIRFieldValue.fieldValueForServerTimestamp,
+//                                 @"query": [NSNumber numberWithDouble:getQueryForPathTime],
+//                                 @"snapshot": [NSNumber numberWithDouble:getSnapshotTime],
+//                                 @"parsing": [NSNumber numberWithDouble:parsingTime]
+//                                 }completion:^(NSError * _Nullable error) {
+//                                     if (error != nil) {
+//                                         NSLog(@"Error writing document: %@", error);
+//                                     }
+//                                 }];
           }
           else {
             result(error.flutterError);
