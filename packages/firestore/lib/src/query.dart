@@ -70,7 +70,7 @@ class Query {
       new CollectionReference._(_firestore, _pathComponents);
 
   Future<QuerySnapshot> getSnapshot() async {
-    Map<String, List<Map<String, dynamic>>> data =
+    final Map<String, List<Map<String, dynamic>>> data =
         await Firestore.channel.invokeMethod(
       'Query#getSnapshot',
       <String, dynamic>{

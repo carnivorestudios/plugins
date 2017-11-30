@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 
 import 'src/utils/push_id_generator.dart';
-import 'package:chq/chq_logger.dart';
 
 part 'src/collection_reference.dart';
 part 'src/document_change.dart';

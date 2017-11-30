@@ -32,15 +32,11 @@ class Firestore {
         _documentObservers[call.arguments['handle']].add(snapshot);
       }
       else if (call.method == 'QueryError') {
-        String error = call.arguments['error'] as String;
-        ChqLogger.instance.logError(error: error, errorContext: 'QueryError');
-        print('QUERY ERROR: $error');
+        final String error = call.arguments['error'] as String;
         _queryObservers[call.arguments['handle']].addError(error);
       }
       else if (call.method == 'DocumentError') {
-        String error = call.arguments['error'] as String;
-        ChqLogger.instance.logError(error: error, errorContext: 'DocumentError');
-        print('DOCUMENT ERROR: $error');
+        final String error = call.arguments['error'] as String;
         _documentObservers[call.arguments['handle']].addError(error);
       }
     });
@@ -91,7 +87,7 @@ class Firestore {
       assert(orderBy != null);
     }
 
-    Map<String, dynamic> parameters = <String, dynamic>{
+    final Map<String, dynamic> parameters = <String, dynamic>{
       'orderBy': orderBy,
       'limit': limit,
       'descending': descending,
