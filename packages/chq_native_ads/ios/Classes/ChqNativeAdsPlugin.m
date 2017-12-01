@@ -70,6 +70,7 @@
   } else if ([@"unloadAd" isEqualToString:call.method]) {
     FBNativeAd *ad = self.nativeAds[call.arguments[@"id"]];
     [ad unregisterView];
+    NSLog(@"Native ad (%@) was unloaded.", call.arguments[@"id"]);
     result(nil);
   } else {
     result(FlutterMethodNotImplemented);

@@ -1,6 +1,6 @@
 part of chq_native_ads;
 
-class _ChqNativeAdInfo {
+class ChqNativeAdInfo {
   final String id;
   final String title;
   final String social;
@@ -11,7 +11,7 @@ class _ChqNativeAdInfo {
   final int iconWidth;
   final int iconHeight;
 
-  _ChqNativeAdInfo(Map<String, dynamic> adInfo)
+  ChqNativeAdInfo(Map<String, dynamic> adInfo)
       : id = adInfo["id"],
         title = adInfo["title"],
         social = adInfo["socialContext"],
