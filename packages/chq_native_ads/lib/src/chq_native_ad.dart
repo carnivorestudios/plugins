@@ -18,7 +18,7 @@ class _ChqNativeAdState extends State<ChqNativeAd> {
   @override
   void dispose() {
     if (_adInfo != null) {
-      _chqNativeAds.unloadAd(_adInfo.id);
+      _chqNativeAds._unloadAd(_adInfo.id);
     }
     super.dispose();
   }
@@ -28,7 +28,7 @@ class _ChqNativeAdState extends State<ChqNativeAd> {
     String errorMessage;
     // Platform messages may fail, so we use a try/catch PlatformException.
     try {
-      adInfo = await _chqNativeAds.loadAd();
+      adInfo = await _chqNativeAds._loadAd();
     }
     on PlatformException catch (ex) {
       adInfo = null;
@@ -119,7 +119,7 @@ class _ChqNativeAdState extends State<ChqNativeAd> {
                 color: const Color.fromRGBO(66, 244, 244, 1.0),
                 child: new Text(_adInfo.cta),
                 onPressed: () {
-                  _chqNativeAds.clickAd(_adInfo.id);
+                  _chqNativeAds._clickAd(_adInfo.id);
                 }),
           ],
         ),

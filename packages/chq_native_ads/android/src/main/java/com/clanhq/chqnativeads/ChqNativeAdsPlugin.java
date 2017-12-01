@@ -33,6 +33,7 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
   }
 
   private FlutterActivity activity = null;
+  private String placementId = null;
   /**
    * Plugin registration.
    */
@@ -43,23 +44,34 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
-    if (call.method.equals("loadAd")) {
-      createFbAd(result);
-    }
-    else if (call.method.equals("clickAd")) {
-      String id = call.argument("id");
-      if (callToActions.containsKey(id)) {
-        callToActions.get(id).performClick();
-        result.success("Ok");
-      }
-      else {
-        result.error("", "", "");
-      }
-    }
-    else if (call.method.equals("getPlatformVersion")) {
-      result.success("Android " + android.os.Build.VERSION.RELEASE);
-    } else {
-      result.notImplemented();
+    switch (call.method) {
+      case "setPlacementId":
+        placementId = call.argument("placementId");
+        break;
+      case "loadAd":
+        if (placementId == null) {
+          result.error("MissingPlacementId", "Must call setPlacementId before calling loadAd", null);
+        }
+        else {
+          createFbAd(result);
+        }
+        break;
+      case "clickAd":
+        String id = call.argument("id");
+        if (callToActions.containsKey(id)) {
+          callToActions.get(id).performClick();
+          result.success(null);
+        }
+        else {
+          result.error("", "", "");
+        }
+        break;
+      case "unloadAd":
+        //TODO
+        result.success(null);
+        break;
+      default:
+        result.notImplemented();
     }
   }
 
@@ -93,8 +105,7 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
       }
     });
 
-    // final NativeAd nativeAd = new NativeAd(activity.getApplicationContext(), "YOUR_PLACEMENT_ID");
-    final NativeAd nativeAd = new NativeAd(activity.getApplicationContext(), "150407042236746_152766088667508");
+    final NativeAd nativeAd = new NativeAd(activity.getApplicationContext(), placementId);
     Log.d("NativeAdPlugin", "PlacementId: " + nativeAd.getPlacementId());
 
     nativeAd.setAdListener(new AdListener() {

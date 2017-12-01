@@ -11,6 +11,7 @@
 @property (strong, nonatomic) NSMutableDictionary *nativeAds;
 @property (strong, nonatomic) NSMutableDictionary *flutterResults;
 @property (strong, nonatomic) UIView *dummyView;
+@property (strong, nonatomic) NSString *placementId;
 @end
 
 @implementation ChqNativeAdsPlugin
@@ -33,14 +34,22 @@
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-  if ([@"getPlatformVersion" isEqualToString:call.method]) {
-    result([@"iOS " stringByAppendingString:[[UIDevice currentDevice] systemVersion]]);
+  if ([@"setPlacementId" isEqualToString:call.method]) {
+    self.placementId = call.arguments[@"placementId"];
+    result(nil);
   } else if ([@"loadAd" isEqualToString:call.method]) {
-    FBNativeAd *nativeAd = [[FBNativeAd alloc] initWithPlacementID:@"YOUR_PLACEMENT_ID"];
-    nativeAd.delegate = self;
-    self.nativeAds[nativeAd.adId] = nativeAd;
-    self.flutterResults[nativeAd.adId] = result;
-    [nativeAd loadAd];
+    if (self.placementId == nil) {
+      result([FlutterError errorWithCode:@"MissingPlacementId"
+                                 message:@"Must call setPlacementId before calling loadAd"
+                                 details:nil]);
+    }
+    else {
+      FBNativeAd *nativeAd = [[FBNativeAd alloc] initWithPlacementID:self.placementId];
+      nativeAd.delegate = self;
+      self.nativeAds[nativeAd.adId] = nativeAd;
+      self.flutterResults[nativeAd.adId] = result;
+      [nativeAd loadAd];
+    }
   } else if ([@"clickAd" isEqualToString:call.method]) {
     FBNativeAd *ad = self.nativeAds[call.arguments[@"id"]];
     if (ad != nil) {
