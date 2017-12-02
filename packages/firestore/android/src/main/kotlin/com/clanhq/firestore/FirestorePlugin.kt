@@ -334,13 +334,8 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
 
     val actualOrderBy = orderByParameters?.map {
         val field: String = it[0] as String
-        val descending: Boolean? = it[1] as Boolean?
-
-        if (descending != null) {
-            OrderByParameters(field, descending)
-        } else {
-            OrderByParameters(field)
-        }
+        val descending: Boolean = if (it.size > 1) it[1] as Boolean else false
+        OrderByParameters(field, descending)
     }
 
     val startAtTask: Task<DocumentSnapshot?> =
@@ -380,4 +375,4 @@ data class QueryParameters(val limit: Int?, val orderBy: List<OrderByParameters>
                            val endBeforeId: String?, val endBeforeSnap: DocumentSnapshot?,
                            val endAtTimestamp: Long?, val where: List<*>?)
 
-data class OrderByParameters(val field: String, val descending: Boolean = false)
+data class OrderByParameters(val field: String, val descending: Boolean)
