@@ -87,6 +87,12 @@
   UIView *rootView = rootViewController.view;
   [nativeAd registerViewForInteraction:rootView withViewController:rootViewController withClickableViews:@[self.dummyView]];
   
+  NSNumber *choices_height = [NSNumber numberWithLong: nativeAd.adChoicesIcon.height];
+  NSNumber *choices_width = [NSNumber numberWithLong: nativeAd.adChoicesIcon.width];
+  NSString *choices_url = nativeAd.adChoicesIcon.url.absoluteString;
+  NSString *choices_link = nativeAd.adChoicesLinkURL.absoluteString;
+  NSString *choices_text = nativeAd.adChoicesText;
+  
   NSNumber *icon_height = [NSNumber numberWithLong: nativeAd.icon.height];
   NSNumber *icon_width = [NSNumber numberWithLong: nativeAd.icon.width];
   NSString *icon_url = nativeAd.icon.url.absoluteString;
@@ -100,6 +106,12 @@
   NSString *body = nativeAd.body;
   NSString *callToAction = nativeAd.callToAction;
   
+  NSDictionary *adChoicesDictionary = @{@"height": choices_height,
+                                   @"width": choices_width,
+                                   @"url": choices_url,
+                                   @"link": choices_link,
+                                   @"text": choices_text};
+  
   NSDictionary *iconDictionary = @{@"height": icon_height,
                                    @"width": icon_width,
                                    @"url": icon_url};
@@ -111,6 +123,7 @@
   NSDictionary *adDictionary = @{@"id": nativeAd.adId,
                                  @"icon": iconDictionary,
                                  @"coverImage": coverImageDictionary,
+                                 @"choices": adChoicesDictionary,
                                  @"title": title,
                                  @"socialContext": socialContext,
                                  @"body": body,
