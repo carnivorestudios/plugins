@@ -69,9 +69,8 @@ class Firestore {
   }
 
   Query query(String path,
-      {String orderBy,
+      {List<List<dynamic>> orderBy,
       int limit,
-      bool descending,
       String startAtId,
       String startAfterId,
       String endAtId,
@@ -90,7 +89,6 @@ class Firestore {
     final Map<String, dynamic> parameters = <String, dynamic>{
       'orderBy': orderBy,
       'limit': limit,
-      'descending': descending,
       'startAtId': startAtId,
       'startAfterId': startAfterId,
       'endAtId' : endAtId,
