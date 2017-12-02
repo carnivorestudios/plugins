@@ -35,8 +35,12 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
 - (NSDictionary<NSString *, id> *)flutterSnapshotWithHandle:(NSNumber *)handle;
 @end
 
-@interface FIRCollectionReference (Flutter)
+@interface FIRQuery (Flutter)
 - (FIRQuery *)queryWithParameters:(NSDictionary *)parameters;
+- (FIRQuery *)queryWithWhereClauses:(NSArray *)clauses;
+@end
+
+@interface FIRCollectionReference (Flutter)
 - (void)queryStartingAtId:(NSString *)documentId withParameters:(NSDictionary *)parameters completion:(FIRQueryBlock)completion;
 - (void)queryStartingAfterId:(NSString *)documentId withParameters:(NSDictionary *)parameters completion:(FIRQueryBlock)completion;
 - (void)queryEndingAtId:(NSString *)documentId withParameters:(NSDictionary *)parameters completion:(FIRQueryBlock)completion;
@@ -279,17 +283,53 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
 }
 @end
 
-@implementation FIRCollectionReference (Flutter)
+@implementation FIRQuery (Flutter)
 - (FIRQuery *)queryWithParameters:(NSDictionary *)parameters {
+  NSArray *where = parameters[@"where"];
   NSString *orderBy = parameters[@"orderBy"];
   NSNumber *limit = parameters[@"limit"];
   NSNumber *descending = parameters[@"descending"];
   BOOL desc = descending.notNull ? descending.boolValue : false;
   FIRQuery *query = self;
+  
+  if (where.notNull) query = [query queryWithWhereClauses:where];
   if (orderBy.notNull) query = [query queryOrderedByField:orderBy descending:desc];
   if (limit.notNull) query = [query queryLimitedTo:limit.integerValue];
   return query;
 }
+
+- (FIRQuery *)queryWithWhereClauses:(NSArray *)clauses {
+  FIRQuery *query = self;
+  for (NSArray *clause in clauses) {
+    NSString *fieldName = clause[0];
+    NSString *operator = clause[1];
+    id value = clause[2];
+    
+    if ([operator isEqualToString:@"=="]) {
+      query = [query queryWhereField:fieldName isEqualTo:value];
+    }
+    else if ([operator isEqualToString:@"<"]) {
+      query = [query queryWhereField:fieldName isLessThan:value];
+    }
+    else if ([operator isEqualToString:@"<="]) {
+      query = [query queryWhereField:fieldName isLessThanOrEqualTo:value];
+    }
+    else if ([operator isEqualToString:@">"]) {
+      query = [query queryWhereField:fieldName isGreaterThan:value];
+    }
+    else if ([operator isEqualToString:@">="]) {
+      query = [query queryWhereField:fieldName isGreaterThanOrEqualTo:value];
+    }
+    else {
+      NSLog(@"[FirestorePlugin] Unknown operator in WHERE clause: %@", operator);
+    }
+  }
+  return query;
+}
+
+@end
+
+@implementation FIRCollectionReference (Flutter)
 
 - (void)queryStartingAtId:(NSString *)documentId withParameters:(NSDictionary *)parameters completion:(FIRQueryBlock)completion {
   [[self documentWithPath:documentId] getDocumentWithCompletion:^(FIRDocumentSnapshot * _Nullable snapshot, NSError * _Nullable error) {

@@ -123,7 +123,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
                         resultErrorForDocumentId(result, qp.endBeforeId)
                     } else {
                         registerSnapshotListener(result, path, limit = qp.limit,
-                                orderBy = qp.orderBy, descending = qp.descending,
+                                orderBy = qp.orderBy,
                                 startAt = qp.startAtSnap, startAfter = qp.startAfterSnap,
                                 endAt = qp.endAtSnap, endBefore = qp.endBeforeSnap,
                                 endAtTimestamp = qp.endAtTimestamp, where = qp.where)
@@ -142,8 +142,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
                     val qp: QueryParameters = it
 
                     try {
-                        val query = getQuery(path = path, limit = qp.limit, orderBy = qp.orderBy,
-                                descending = qp.descending, startAt = qp.startAtSnap,
+                        val query = getQuery(path = path, limit = qp.limit, orderBy = qp.orderBy, startAt = qp.startAtSnap,
                                 startAfter = qp.startAfterSnap, endAt = qp.endAtSnap,
                                 endBefore = qp.endBeforeSnap, endAtTimestamp = qp.endAtTimestamp, where = qp.where)
 
@@ -203,8 +202,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
             result: Result,
             path: String,
             limit: Int?,
-            orderBy: String?,
-            descending: Boolean?,
+            orderBy: List<OrderByParameters>?,
             startAt: DocumentSnapshot? = null,
             startAfter: DocumentSnapshot? = null,
             endAt: DocumentSnapshot? = null,
@@ -218,7 +216,6 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
                 path = path,
                 limit = limit,
                 orderBy = orderBy,
-                descending = descending,
                 startAt = startAt,
                 startAfter = startAfter,
                 endAt = endAt,
@@ -271,8 +268,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
     private fun getQuery(
             path: String,
             limit: Int?,
-            orderBy: String?,
-            descending: Boolean?,
+            orderBy: List<OrderByParameters>?,
             startAt: DocumentSnapshot?,
             startAfter: DocumentSnapshot?,
             endAt: DocumentSnapshot?,
@@ -304,8 +300,10 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
         }
 
         if (limit != null) query = query.limit(limit.toLong())
-        if (orderBy != null && descending != null) query = query.orderBy(orderBy, if (descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING)
-        if (orderBy != null && descending == null) query = query.orderBy(orderBy)
+
+        orderBy?.forEach {
+            query = query.orderBy(it.field, if (it.descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING)
+        }
 
         if (startAt != null) query = query.startAt(startAt)
         if (startAfter != null) query = query.startAfter(startAfter)
@@ -326,14 +324,19 @@ private fun getCollectionReference(path: String): CollectionReference = Firebase
 
 fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParameters> {
     val limit = parameters?.get("limit") as? Int
-    val orderBy = parameters?.get("orderBy") as? String
-    val descending = parameters?.get("descending") as? Boolean
+    val orderByParameters = parameters?.get("orderBy") as? List<List<*>>
     val startAtId = parameters?.get("startAtId") as? String
     val startAfterId = parameters?.get("startAfterId") as? String
     val endAtId = parameters?.get("endAtId") as? String
     val endBeforeId = parameters?.get("endBeforeId") as? String
     val endAtTimestamp = parameters?.get("endAtTimestamp") as? Long
     val where = parameters?.get("where") as? List<*>;
+
+    val actualOrderBy = orderByParameters?.map {
+        val field: String = it[0] as String
+        val descending: Boolean = if (it.size > 1) it[1] as Boolean else false
+        OrderByParameters(field, descending)
+    }
 
     val startAtTask: Task<DocumentSnapshot?> =
             if (startAtId != null) getDocumentReference("$path/$startAtId").get()
@@ -359,15 +362,17 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
         val endAtSnap: DocumentSnapshot? = endAtTask.result
         val endBeforeSnap: DocumentSnapshot? = endBeforeTask.result
 
-        QueryParameters(limit, orderBy, descending, startAtId, startAtSnap, startAfterId,
+        QueryParameters(limit, actualOrderBy, startAtId, startAtSnap, startAfterId,
                 startAfterSnap, endAtId, endAtSnap, endBeforeId, endBeforeSnap, endAtTimestamp, where)
     }
     return x.continueWith(y)
 }
 
-data class QueryParameters(val limit: Int?, val orderBy: String?, val descending: Boolean?,
+data class QueryParameters(val limit: Int?, val orderBy: List<OrderByParameters>?,
                            val startAtId: String?, val startAtSnap: DocumentSnapshot?,
                            val startAfterId: String?, val startAfterSnap: DocumentSnapshot?,
                            val endAtId: String?, val endAtSnap: DocumentSnapshot?,
                            val endBeforeId: String?, val endBeforeSnap: DocumentSnapshot?,
                            val endAtTimestamp: Long?, val where: List<*>?)
+
+data class OrderByParameters(val field: String, val descending: Boolean)
