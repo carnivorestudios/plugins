@@ -302,7 +302,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
         if (limit != null) query = query.limit(limit.toLong())
 
         orderBy?.forEach {
-            query.orderBy(it.field, if (it.descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING)
+            query = query.orderBy(it.field, if (it.descending) Query.Direction.DESCENDING else Query.Direction.ASCENDING)
         }
 
         if (startAt != null) query = query.startAt(startAt)
