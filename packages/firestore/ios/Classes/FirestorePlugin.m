@@ -38,6 +38,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
 @interface FIRQuery (Flutter)
 - (FIRQuery *)queryWithParameters:(NSDictionary *)parameters;
 - (FIRQuery *)queryWithWhereClauses:(NSArray *)clauses;
+- (FIRQuery *)queryWithOrderings:(NSArray *)orderings;
 @end
 
 @interface FIRCollectionReference (Flutter)
@@ -286,15 +287,13 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
 @implementation FIRQuery (Flutter)
 - (FIRQuery *)queryWithParameters:(NSDictionary *)parameters {
   NSArray *where = parameters[@"where"];
-  NSString *orderBy = parameters[@"orderBy"];
   NSNumber *limit = parameters[@"limit"];
-  NSNumber *descending = parameters[@"descending"];
-  BOOL desc = descending.notNull ? descending.boolValue : false;
+  NSArray *orderings = parameters[@"orderBy"];
   FIRQuery *query = self;
   
   if (where.notNull) query = [query queryWithWhereClauses:where];
-  if (orderBy.notNull) query = [query queryOrderedByField:orderBy descending:desc];
   if (limit.notNull) query = [query queryLimitedTo:limit.integerValue];
+  if (orderings.notNull) query = [query queryWithOrderings:orderings];
   return query;
 }
 
@@ -323,6 +322,19 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     else {
       NSLog(@"[FirestorePlugin] Unknown operator in WHERE clause: %@", operator);
     }
+  }
+  return query;
+}
+
+- (FIRQuery *)queryWithOrderings:(NSArray *)orderings {
+  FIRQuery *query = self;
+  for (NSArray *ordering in orderings) {
+    NSString *field = ordering[0];
+    BOOL descending = NO;
+    if (ordering.count > 1) {
+      descending = ((NSNumber*)ordering[1]).boolValue;
+    }
+    query = [query queryOrderedByField:field descending:descending];
   }
   return query;
 }
