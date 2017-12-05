@@ -1,16 +1,21 @@
 package com.clanhq.chqnativeads;
 
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 
 import com.facebook.ads.Ad;
+import com.facebook.ads.AdChoicesView;
 import com.facebook.ads.AdError;
 import com.facebook.ads.AdListener;
+import com.facebook.ads.AdSettings;
 import com.facebook.ads.NativeAd;
 import com.facebook.ads.NativeAdViewAttributes;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,30 +25,35 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
+import io.flutter.view.FlutterView;
 
 /**
  * ChqNativeAdsPlugin
  */
 public class ChqNativeAdsPlugin implements MethodCallHandler {
 
-  private static Map<String, Button> callToActions = new HashMap<String, Button>();
-
-  public ChqNativeAdsPlugin(FlutterActivity activity) {
-    this.activity = activity;
-  }
-
   private FlutterActivity activity = null;
   private String placementId = null;
+//  private View dummyView = null;
+  private Map<String, NativeAd> nativeAds = new HashMap<String, NativeAd>();
+  private Map<String, View> registeredViews = new HashMap<String, View>();
+
+  private ChqNativeAdsPlugin(FlutterActivity activity) {
+    this.activity = activity;
+//    dummyView = new View(activity.getApplicationContext());
+  }
   /**
    * Plugin registration.
    */
   public static void registerWith(Registrar registrar) {
     final MethodChannel channel = new MethodChannel(registrar.messenger(), "chq_native_ads");
     channel.setMethodCallHandler(new ChqNativeAdsPlugin((FlutterActivity) registrar.activity()));
+    AdSettings.addTestDevice("d8e54fb9e32a6ba32310f577cc41592c"); //Charlie emulator
   }
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
+    String id = call.argument("id");
     switch (call.method) {
       case "setPlacementId":
         placementId = call.argument("placementId");
@@ -57,18 +67,25 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         }
         break;
       case "clickAd":
-        String id = call.argument("id");
-        if (callToActions.containsKey(id)) {
-          callToActions.get(id).performClick();
+        Log.d("NativeAds", "ad clicked: " + id);
+        if (nativeAds.containsKey(id)) {
+          nativeAds.get(id).onCtaBroadcast();
           result.success(null);
         }
         else {
-          result.error("", "", "");
+          result.error("NativeAdPluginMissingAd", "Could not find ad to perform action with id " + id, null);
         }
         break;
       case "unloadAd":
-        //TODO
-        result.success(null);
+        Log.d("NativeAds", "unload ad: " + id);
+        if (nativeAds.containsKey(id)) {
+          nativeAds.remove(id).unregisterView();
+          result.success(null);
+        }
+        else {
+          result.error("NativeAdPluginMissingAd", "Could not find ad to unload with id " + id, null);
+        }
+        registeredViews.remove(id);
         break;
       default:
         result.notImplemented();
@@ -92,18 +109,6 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
     return map;
   }
   private void createFbAd(final Result r) {
-    final Button ctaButton = new Button(activity.getApplicationContext());
-    ctaButton.setText("click me");
-    ctaButton.setLayoutParams(new ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.WRAP_CONTENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    ctaButton.setOnClickListener(new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        Log.d("NativeAdPlugin", "onClick: " + v.toString());
-      }
-    });
 
     final NativeAd nativeAd = new NativeAd(activity.getApplicationContext(), placementId);
     Log.d("NativeAdPlugin", "PlacementId: " + nativeAd.getPlacementId());
@@ -129,7 +134,9 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
       public void onAdLoaded(Ad ad) {
         String id = nativeAd.getId();
 
-        // Set the Text.
+        Map<String, Object> adChoices = image2map(nativeAd.getAdChoicesIcon());
+        adChoices.put("link", nativeAd.getAdChoicesLinkUrl());
+        adChoices.put("text", "Ad Choices");
         Map<String, Object> adInfo = new HashMap<>();
         adInfo.put("id", nativeAd.getId());
         adInfo.put("title", nativeAd.getAdTitle());
@@ -138,8 +145,7 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         adInfo.put("callToAction", nativeAd.getAdCallToAction());
         adInfo.put("icon", image2map(nativeAd.getAdIcon()));
         adInfo.put("coverImage", image2map(nativeAd.getAdCoverImage()));
-        adInfo.put("adChoicesIcon", image2map(nativeAd.getAdChoicesIcon()));
-        adInfo.put("adChoicesLinkUrl", nativeAd.getAdChoicesLinkUrl());
+        adInfo.put("choices", adChoices);
         adInfo.put("adNetwork", nativeAd.getAdNetwork().toString());
         adInfo.put("rawBody", nativeAd.getAdRawBody());
         adInfo.put("subTitle", nativeAd.getAdSubtitle());
@@ -150,9 +156,26 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         }
 
         // Register the Title and CTA button to listen for clicks.
-        nativeAd.registerViewForInteraction(ctaButton);
+        View dummyView = new View(activity.getApplicationContext());
+//        dummyView.setMinimumWidth(10);
+//        dummyView.setMinimumHeight(10);
+        nativeAd.registerViewForInteraction(dummyView);
+        registeredViews.put(id, dummyView);
+//        FlutterView view = activity.getFlutterView();
+//
+//        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+//            WindowManager.LayoutParams.WRAP_CONTENT,
+//            WindowManager.LayoutParams.WRAP_CONTENT,
+//            WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG);
+//        params.gravity = Gravity.TOP | Gravity.START;
+//        params.x = 0;
+//        params.y = 0;
+//
+//
+//        WindowManager m = activity.getWindowManager();
+//        m.addView(dummyView, params);
 
-        callToActions.put(id, ctaButton);
+        nativeAds.put(id, nativeAd);
         result.success(adInfo);
       }
 
