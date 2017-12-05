@@ -127,6 +127,7 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
 
       @Override
       public void onError(Ad ad, AdError error) {
+        nativeAds.remove(nativeAd.getId());
         result.error("Error: " + Integer.toString(error.getErrorCode()), error.getErrorMessage(), null);
       }
 

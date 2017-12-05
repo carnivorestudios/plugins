@@ -136,6 +136,13 @@
 - (void)nativeAd:(FBNativeAd *)nativeAd didFailWithError:(NSError *)error
 {
   NSLog(@"Native ad (%@) failed to load with error: %@", nativeAd.adId, error);
+  FlutterResult result = self.flutterResults[nativeAd.adId];
+  [self.flutterResults removeObjectForKey:nativeAd.adId];
+  [nativeAd unregisterView];
+  [self.nativeAds removeObjectForKey:nativeAd.adId];
+  result([FlutterError errorWithCode:@"AdLoadingFailed"
+                             message:@"Ad failed to load with error"
+                             details:error.debugDescription]);
 }
 
 - (void)nativeAdDidClick:(FBNativeAd *)nativeAd
