@@ -1,5 +1,6 @@
 package com.clanhq.chqnativeads;
 
+import android.graphics.PixelFormat;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -17,6 +18,7 @@ import com.facebook.ads.NativeAdViewAttributes;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import io.flutter.app.FlutterActivity;
@@ -80,12 +82,12 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         Log.d("NativeAds", "unload ad: " + id);
         if (nativeAds.containsKey(id)) {
           nativeAds.remove(id).unregisterView();
+          activity.getWindowManager().removeView(registeredViews.remove(id));
           result.success(null);
         }
         else {
           result.error("NativeAdPluginMissingAd", "Could not find ad to unload with id " + id, null);
         }
-        registeredViews.remove(id);
         break;
       default:
         result.notImplemented();
@@ -158,23 +160,19 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
 
         // Register the Title and CTA button to listen for clicks.
         View dummyView = new View(activity.getApplicationContext());
-//        dummyView.setMinimumWidth(10);
-//        dummyView.setMinimumHeight(10);
-        nativeAd.registerViewForInteraction(dummyView);
+
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(0, 0,
+            WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT);
+
+        activity.getWindowManager().addView(dummyView, params);
+
+        List<View> clickable = new ArrayList<View>();
+        clickable.add(dummyView);
+        nativeAd.registerViewForInteraction(activity.getFlutterView(), clickable);
         registeredViews.put(id, dummyView);
-//        FlutterView view = activity.getFlutterView();
-//
-//        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-//            WindowManager.LayoutParams.WRAP_CONTENT,
-//            WindowManager.LayoutParams.WRAP_CONTENT,
-//            WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG);
-//        params.gravity = Gravity.TOP | Gravity.START;
-//        params.x = 0;
-//        params.y = 0;
-//
-//
-//        WindowManager m = activity.getWindowManager();
-//        m.addView(dummyView, params);
 
         nativeAds.put(id, nativeAd);
         result.success(adInfo);
