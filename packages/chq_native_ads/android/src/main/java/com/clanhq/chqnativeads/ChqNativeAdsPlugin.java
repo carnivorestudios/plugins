@@ -137,7 +137,7 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
 
         Map<String, Object> adChoices = image2map(nativeAd.getAdChoicesIcon());
         adChoices.put("link", nativeAd.getAdChoicesLinkUrl());
-        adChoices.put("text", "Ad Choices");
+        adChoices.put("text", "AdChoices");
         Map<String, Object> adInfo = new HashMap<>();
         adInfo.put("id", nativeAd.getId());
         adInfo.put("title", nativeAd.getAdTitle());
