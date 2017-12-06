@@ -61,10 +61,8 @@ class ChqNativeAd {
   }
 
   void dispose() {
-    print('dispose ad, _loadTask: $_loadTask, _adInfo: $_adInfo, id: ${_adInfo?.id}');
     if (_loadTask != null) {
       _loadTask.then((info) {
-        print('dispose ad after load, id: ${info.id}');
         _chqNativeAds._unloadAd(info.id);
       });
     }
