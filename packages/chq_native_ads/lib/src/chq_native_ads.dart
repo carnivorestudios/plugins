@@ -17,7 +17,7 @@ class ChqNativeAds {
   }
 
   Future<ChqNativeAdInfo> _loadAd() async {
-    final Map<String,dynamic> adInfo = await _channel.invokeMethod("loadAd");
+    final Map<String, dynamic> adInfo = await _channel.invokeMethod("loadAd");
     return adInfo != null ? new ChqNativeAdInfo(adInfo) : null;
   }
 

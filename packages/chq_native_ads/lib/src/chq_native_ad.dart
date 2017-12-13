@@ -28,9 +28,15 @@ class ChqNativeAd {
       _adInfo = adInfo;
       _hasLoaded = true;
       _loadTask = null;
-    });
-    task.catchError((dynamic error, StackTrace stackTrace) {
-      _errorMessage = Error.safeToString(error);
+    }).catchError((dynamic error, StackTrace stackTrace) {
+      if (error is PlatformException) {
+        if (error.message == "No fill") {
+          print('[ChqNativeAds] Failed to fill ad');
+        }
+        _errorMessage = error.message;
+      } else {
+        _errorMessage = Error.safeToString(error);
+      }
     });
     return task;
   }
@@ -40,22 +46,20 @@ class ChqNativeAd {
       _loadTask = _load();
     }
     if (_loadTask != null) {
-      return new FutureBuilder<ChqNativeAdInfo>(future:_loadTask, builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return builder.loadingWidget();
-        }
-        else if (snapshot.hasError) {
-          return builder.errorWidget(Error.safeToString(snapshot.error));
-        }
-        else {
-          return builder.adWidget(snapshot.data);
-        }
-      });
-    }
-    else if (_errorMessage != null) {
+      return new FutureBuilder<ChqNativeAdInfo>(
+          future: _loadTask,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return builder.loadingWidget();
+            } else if (snapshot.hasError) {
+              return builder.errorWidget(Error.safeToString(snapshot.error));
+            } else {
+              return builder.adWidget(snapshot.data);
+            }
+          });
+    } else if (_errorMessage != null) {
       return builder.errorWidget(_errorMessage);
-    }
-    else {
+    } else {
       return builder.adWidget(_adInfo);
     }
   }
@@ -65,8 +69,7 @@ class ChqNativeAd {
       _loadTask.then((info) {
         _chqNativeAds._unloadAd(info.id);
       });
-    }
-    else if (_adInfo != null) {
+    } else if (_adInfo != null) {
       _chqNativeAds._unloadAd(_adInfo.id);
     }
   }

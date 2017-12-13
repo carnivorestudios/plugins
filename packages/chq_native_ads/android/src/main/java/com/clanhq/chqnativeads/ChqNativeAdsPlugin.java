@@ -108,7 +108,6 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
   private void createFbAd(final Result r) {
 
     final NativeAd nativeAd = new NativeAd(activity.getApplicationContext(), placementId);
-    Log.d("NativeAdPlugin", "PlacementId: " + nativeAd.getPlacementId());
 
     nativeAd.setAdListener(new AdListener() {
       Result result = r;
