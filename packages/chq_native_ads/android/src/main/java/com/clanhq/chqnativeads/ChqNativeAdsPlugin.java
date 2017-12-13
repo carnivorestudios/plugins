@@ -36,13 +36,11 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
 
   private FlutterActivity activity = null;
   private String placementId = null;
-//  private View dummyView = null;
   private Map<String, NativeAd> nativeAds = new HashMap<String, NativeAd>();
   private Map<String, View> registeredViews = new HashMap<String, View>();
 
   private ChqNativeAdsPlugin(FlutterActivity activity) {
     this.activity = activity;
-//    dummyView = new View(activity.getApplicationContext());
   }
   /**
    * Plugin registration.
@@ -50,7 +48,6 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
   public static void registerWith(Registrar registrar) {
     final MethodChannel channel = new MethodChannel(registrar.messenger(), "chq_native_ads");
     channel.setMethodCallHandler(new ChqNativeAdsPlugin((FlutterActivity) registrar.activity()));
-    AdSettings.addTestDevice("d8e54fb9e32a6ba32310f577cc41592c"); //Charlie emulator
   }
 
   @Override
@@ -69,7 +66,6 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         }
         break;
       case "clickAd":
-        Log.d("NativeAds", "ad clicked: " + id);
         if (nativeAds.containsKey(id)) {
           nativeAds.get(id).onCtaBroadcast();
           result.success(null);
@@ -79,7 +75,6 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         }
         break;
       case "unloadAd":
-        Log.d("NativeAds", "unload ad: " + id);
         if (nativeAds.containsKey(id)) {
           nativeAds.remove(id).unregisterView();
           activity.getWindowManager().removeView(registeredViews.remove(id));
@@ -149,7 +144,9 @@ public class ChqNativeAdsPlugin implements MethodCallHandler {
         adInfo.put("icon", image2map(nativeAd.getAdIcon()));
         adInfo.put("coverImage", image2map(nativeAd.getAdCoverImage()));
         adInfo.put("choices", adChoices);
-        adInfo.put("adNetwork", nativeAd.getAdNetwork().toString());
+        if (nativeAd.getAdNetwork() != null) {
+          adInfo.put("adNetwork", nativeAd.getAdNetwork().toString());
+        }
         adInfo.put("rawBody", nativeAd.getAdRawBody());
         adInfo.put("subTitle", nativeAd.getAdSubtitle());
         adInfo.put("placementId", nativeAd.getPlacementId());

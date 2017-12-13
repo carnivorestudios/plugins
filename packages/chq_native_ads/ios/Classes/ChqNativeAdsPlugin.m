@@ -54,7 +54,7 @@
     FBNativeAd *ad = self.nativeAds[call.arguments[@"id"]];
     if (ad != nil) {
       if ([ad performClick]) {
-        result(@"Ok");
+        result(nil);
       }
       else {
         result([FlutterError errorWithCode:@"AdFailedToHandleAction"
@@ -70,7 +70,6 @@
   } else if ([@"unloadAd" isEqualToString:call.method]) {
     FBNativeAd *ad = self.nativeAds[call.arguments[@"id"]];
     [ad unregisterView];
-    NSLog(@"Native ad (%@) was unloaded.", call.arguments[@"id"]);
     result(nil);
   } else {
     result(FlutterMethodNotImplemented);
@@ -130,12 +129,10 @@
                                  @"callToAction": callToAction};
   
   result(adDictionary);
-  NSLog(@"Native ad (%@) was loaded.", nativeAd.adId);
 }
 
 - (void)nativeAd:(FBNativeAd *)nativeAd didFailWithError:(NSError *)error
 {
-  NSLog(@"Native ad (%@) failed to load with error: %@", nativeAd.adId, error);
   FlutterResult result = self.flutterResults[nativeAd.adId];
   [self.flutterResults removeObjectForKey:nativeAd.adId];
   [nativeAd unregisterView];
@@ -147,17 +144,17 @@
 
 - (void)nativeAdDidClick:(FBNativeAd *)nativeAd
 {
-  NSLog(@"Native (%@) ad was clicked.", nativeAd.adId);
+//  NSLog(@"Native (%@) ad was clicked.", nativeAd.adId);
 }
 
 - (void)nativeAdDidFinishHandlingClick:(FBNativeAd *)nativeAd
 {
-  NSLog(@"Native ad (%@) did finish click handling.", nativeAd.adId);
+//  NSLog(@"Native ad (%@) did finish click handling.", nativeAd.adId);
 }
 
 - (void)nativeAdWillLogImpression:(FBNativeAd *)nativeAd
 {
-  NSLog(@"Native ad (%@) impression is being captured.", nativeAd.adId);
+//  NSLog(@"Native ad (%@) impression is being captured.", nativeAd.adId);
 }
 
 @end
