@@ -194,6 +194,7 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
 - (void)getQueryForPath:(NSString *)path withParamaters:(NSDictionary *)parameters completion:(FIRQueryBlock)completion {
   NSString *startAtId = parameters[@"startAtId"];
   NSString *startAfterId = parameters[@"startAfterId"];
+  NSNumber *startAtTimestamp = parameters[@"startAtTimestamp"];
   NSString *endAtId = parameters[@"endAtId"];
   NSString *endBeforeId = parameters[@"endBeforeId"];
   NSNumber *endAtTimestamp = parameters[@"endAtTimestamp"];
@@ -203,6 +204,11 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   }
   else if (startAfterId.notNull) {
     [collectionReference queryStartingAfterId:startAfterId withParameters:parameters completion:completion];
+  }
+  else if (startAtTimestamp.notNull) {
+    NSDate *timestamp = [NSDate dateWithTimeIntervalSince1970:startAtTimestamp.integerValue/1000];
+    FIRQuery *query = [[collectionReference queryWithParameters:parameters] queryStartingAtValues:@[timestamp]];
+    completion(query, nil);
   }
   else if (endAtId.notNull) {
     [collectionReference queryEndingAtId:endAtId withParameters:parameters completion:completion];

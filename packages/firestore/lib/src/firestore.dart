@@ -2,7 +2,6 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-
 part of firestore;
 
 /// The entry point for accessing a Firestore.
@@ -30,12 +29,10 @@ class Firestore {
           call.arguments,
         );
         _documentObservers[call.arguments['handle']].add(snapshot);
-      }
-      else if (call.method == 'QueryError') {
+      } else if (call.method == 'QueryError') {
         final String error = call.arguments['error'] as String;
         _queryObservers[call.arguments['handle']].addError(error);
-      }
-      else if (call.method == 'DocumentError') {
+      } else if (call.method == 'DocumentError') {
         final String error = call.arguments['error'] as String;
         _documentObservers[call.arguments['handle']].addError(error);
       }
@@ -73,9 +70,11 @@ class Firestore {
       int limit,
       String startAtId,
       String startAfterId,
+      int startAtTimestamp,
       String endAtId,
       String endBeforeId,
-      int endAtTimestamp}) {
+      int endAtTimestamp,
+      List<dynamic> where}) {
     assert(path != null);
     if ((startAtId != null) ||
         startAfterId != null ||
@@ -91,9 +90,11 @@ class Firestore {
       'limit': limit,
       'startAtId': startAtId,
       'startAfterId': startAfterId,
-      'endAtId' : endAtId,
-      'endBeforeId' : endBeforeId,
-      'endAtTimestamp' : endAtTimestamp
+      'startAtTimestamp': startAtTimestamp,
+      'endAtId': endAtId,
+      'endBeforeId': endBeforeId,
+      'endAtTimestamp': endAtTimestamp,
+      'where': where,
     };
     return new Query._(
         firestore: this,

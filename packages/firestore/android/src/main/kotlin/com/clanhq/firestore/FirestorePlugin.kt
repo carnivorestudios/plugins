@@ -125,6 +125,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
                         registerSnapshotListener(result, path, limit = qp.limit,
                                 orderBy = qp.orderBy,
                                 startAt = qp.startAtSnap, startAfter = qp.startAfterSnap,
+                                startAtTimestamp = qp.startAtTimestamp,
                                 endAt = qp.endAtSnap, endBefore = qp.endBeforeSnap,
                                 endAtTimestamp = qp.endAtTimestamp, where = qp.where)
                     }
@@ -143,7 +144,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
 
                     try {
                         val query = getQuery(path = path, limit = qp.limit, orderBy = qp.orderBy, startAt = qp.startAtSnap,
-                                startAfter = qp.startAfterSnap, endAt = qp.endAtSnap,
+                                startAfter = qp.startAfterSnap, startAtTimestamp = qp.startAtTimestamp, endAt = qp.endAtSnap,
                                 endBefore = qp.endBeforeSnap, endAtTimestamp = qp.endAtTimestamp, where = qp.where)
 
                         query.get().addOnCompleteListener { task ->
@@ -205,6 +206,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
             orderBy: List<OrderByParameters>?,
             startAt: DocumentSnapshot? = null,
             startAfter: DocumentSnapshot? = null,
+            startAtTimestamp: Long? = null,
             endAt: DocumentSnapshot? = null,
             endBefore: DocumentSnapshot? = null,
             endAtTimestamp: Long? = null,
@@ -218,9 +220,11 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
                 orderBy = orderBy,
                 startAt = startAt,
                 startAfter = startAfter,
+                startAtTimestamp = startAtTimestamp,
                 endAt = endAt,
                 endBefore = endBefore,
-                endAtTimestamp = endAtTimestamp, where = where)
+                endAtTimestamp = endAtTimestamp,
+                where = where)
 
         queryObservers.put(handle, observer)
         listenerRegistrations.put(handle, query.addSnapshotListener(observer))
@@ -271,6 +275,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
             orderBy: List<OrderByParameters>?,
             startAt: DocumentSnapshot?,
             startAfter: DocumentSnapshot?,
+            startAtTimestamp: Long?,
             endAt: DocumentSnapshot?,
             endBefore: DocumentSnapshot?,
             endAtTimestamp: Long?, where: List<*>?): Query {
@@ -307,6 +312,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
 
         if (startAt != null) query = query.startAt(startAt)
         if (startAfter != null) query = query.startAfter(startAfter)
+        if (startAtTimestamp != null) query = query.startAt(Date(startAtTimestamp))
         if (endAt != null) query = query.endAt(endAt)
         if (endBefore != null) query = query.endBefore(endBefore)
         if (endAtTimestamp != null) query = query.endAt(Date(endAtTimestamp))
@@ -327,6 +333,7 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
     val orderByParameters = parameters?.get("orderBy") as? List<List<*>>
     val startAtId = parameters?.get("startAtId") as? String
     val startAfterId = parameters?.get("startAfterId") as? String
+    val startAtTimestamp = parameters?.get("startAtTimestamp") as? Long
     val endAtId = parameters?.get("endAtId") as? String
     val endBeforeId = parameters?.get("endBeforeId") as? String
     val endAtTimestamp = parameters?.get("endAtTimestamp") as? Long
@@ -363,7 +370,7 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
         val endBeforeSnap: DocumentSnapshot? = endBeforeTask.result
 
         QueryParameters(limit, actualOrderBy, startAtId, startAtSnap, startAfterId,
-                startAfterSnap, endAtId, endAtSnap, endBeforeId, endBeforeSnap, endAtTimestamp, where)
+                startAfterSnap, startAtTimestamp, endAtId, endAtSnap, endBeforeId, endBeforeSnap, endAtTimestamp, where)
     }
     return x.continueWith(y)
 }
@@ -371,6 +378,7 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
 data class QueryParameters(val limit: Int?, val orderBy: List<OrderByParameters>?,
                            val startAtId: String?, val startAtSnap: DocumentSnapshot?,
                            val startAfterId: String?, val startAfterSnap: DocumentSnapshot?,
+                           val startAtTimestamp: Long?,
                            val endAtId: String?, val endAtSnap: DocumentSnapshot?,
                            val endBeforeId: String?, val endBeforeSnap: DocumentSnapshot?,
                            val endAtTimestamp: Long?, val where: List<*>?)
