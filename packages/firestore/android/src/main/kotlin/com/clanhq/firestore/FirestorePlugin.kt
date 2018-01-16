@@ -127,7 +127,7 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
                                 startAt = qp.startAtSnap, startAfter = qp.startAfterSnap,
                                 startAtTimestamp = qp.startAtTimestamp,
                                 endAt = qp.endAtSnap, endBefore = qp.endBeforeSnap,
-                                endAtTimestamp = qp.endAtTimestamp, where = qp.where)
+                                endAtTimestamp = qp.endAtTimestamp, where = qp.where, changesOnly = qp.changesOnly)
                     }
                 }
                 queryParameterTask.addOnFailureListener { e ->
@@ -210,10 +210,11 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
             endAt: DocumentSnapshot? = null,
             endBefore: DocumentSnapshot? = null,
             endAtTimestamp: Long? = null,
-            where: List<*>? = null
+            where: List<*>? = null,
+            changesOnly: Boolean?
     ) {
         val handle = nextHandle++
-        val observer = QueryObserver(handle)
+        val observer = QueryObserver(handle, changesOnly)
         val query = getQuery(
                 path = path,
                 limit = limit,
@@ -244,15 +245,19 @@ class FirestorePlugin internal constructor(private val channel: MethodChannel) :
     }
 
 
-    private inner class QueryObserver internal constructor(private val handle: Int) : EventListener<QuerySnapshot?> {
+    private inner class QueryObserver internal constructor(private val handle: Int, private val changesOnly: Boolean?) : EventListener<QuerySnapshot?> {
         override fun onEvent(querySnapshot: QuerySnapshot?, e: FirebaseFirestoreException?) {
             if (querySnapshot == null) return
 
             val arguments = HashMap<String, Any>()
             arguments.put("handle", handle)
 
-            val documents = querySnapshot.documents.map(::documentSnapshotToMap)
-            arguments.put("documents", documents)
+            if (changesOnly != null && changesOnly) {
+                arguments.put("documents", HashMap<String, Any>())
+            }
+            else {
+                arguments.put("documents", querySnapshot.documents.map(::documentSnapshotToMap))
+            }
 
             val documentChanges = ArrayList<Map<String, Any>>()
             for (documentChange in querySnapshot.documentChanges) {
@@ -337,7 +342,8 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
     val endAtId = parameters?.get("endAtId") as? String
     val endBeforeId = parameters?.get("endBeforeId") as? String
     val endAtTimestamp = parameters?.get("endAtTimestamp") as? Long
-    val where = parameters?.get("where") as? List<*>;
+    val where = parameters?.get("where") as? List<*>
+    val changesOnly = parameters?.get("changesOnly") as? Boolean
 
     val actualOrderBy = orderByParameters?.map {
         val field: String = it[0] as String
@@ -370,7 +376,7 @@ fun getQueryParameters(path: String, parameters: Map<*, *>?): Task<QueryParamete
         val endBeforeSnap: DocumentSnapshot? = endBeforeTask.result
 
         QueryParameters(limit, actualOrderBy, startAtId, startAtSnap, startAfterId,
-                startAfterSnap, startAtTimestamp, endAtId, endAtSnap, endBeforeId, endBeforeSnap, endAtTimestamp, where)
+                startAfterSnap, startAtTimestamp, endAtId, endAtSnap, endBeforeId, endBeforeSnap, endAtTimestamp, where, changesOnly)
     }
     return x.continueWith(y)
 }
@@ -381,6 +387,6 @@ data class QueryParameters(val limit: Int?, val orderBy: List<OrderByParameters>
                            val startAtTimestamp: Long?,
                            val endAtId: String?, val endAtSnap: DocumentSnapshot?,
                            val endBeforeId: String?, val endBeforeSnap: DocumentSnapshot?,
-                           val endAtTimestamp: Long?, val where: List<*>?)
+                           val endAtTimestamp: Long?, val where: List<*>?, val changesOnly: Boolean?)
 
 data class OrderByParameters(val field: String, val descending: Boolean)

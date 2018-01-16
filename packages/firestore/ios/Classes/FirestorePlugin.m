@@ -129,7 +129,9 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
         return;
       }
       __block NSNumber *handle = [NSNumber numberWithInt:_nextListenerHandle++];
-      FIRQuerySnapshotBlock observer = [self getQueryObserver:handle];
+      NSNumber *changesOnlyNumber = parameters[@"changesOnly"];
+      BOOL changesOnly = changesOnlyNumber.notNull ? changesOnlyNumber.boolValue : NO;
+      FIRQuerySnapshotBlock observer = [self getQueryObserver:handle changesOnly:changesOnly];
       id<FIRListenerRegistration> listener = [query addSnapshotListener:observer];
       _listeners[handle] = listener;
       result(handle);
@@ -226,7 +228,8 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
   }
 }
 
-- (FIRQuerySnapshotBlock)getQueryObserver:(NSNumber *)handle {
+- (FIRQuerySnapshotBlock)getQueryObserver:(NSNumber *)handle changesOnly:(BOOL)changesOnly {
+//  NSDate *startTime = [NSDate date];
   return ^(FIRQuerySnapshot * _Nullable snapshot, NSError * _Nullable error) {
     if (error) {
       NSLog(@"[FirestorePlugin] Error in query observer: %@", error.debugDescription);
@@ -234,11 +237,17 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
     }
     if (snapshot == nil) return;
     NSMutableArray *documents = [NSMutableArray array];
-    for (FIRDocumentSnapshot *document in snapshot.documents) {
-      [documents addObject:[document flutterSnapshotWithHandle:nil]];
+//    int i = 0;
+    if (!changesOnly) {
+      for (FIRDocumentSnapshot *document in snapshot.documents) {
+//        if (document.metadata.isFromCache) i++;
+        [documents addObject:[document flutterSnapshotWithHandle:nil]];
+      }
     }
     NSMutableArray *documentChanges = [NSMutableArray array];
+//    int j = 0;
     for (FIRDocumentChange *documentChange in snapshot.documentChanges) {
+//      if (documentChange.document.metadata.isFromCache) j++;
       [documentChanges addObject:@{
                                    @"type" : @(documentChange.type),
                                    @"document" : [documentChange.document flutterSnapshotWithHandle:nil],
@@ -252,7 +261,28 @@ typedef void (^FIRQueryBlock)(FIRQuery *_Nullable query,
                                  @"documents" : documents,
                                  @"documentChanges" : documentChanges
                                  }];
+    
+//    NSLog(@"query observer %@ snapshot from cache: %d, cachedDocs: %d of %ld, changes: %ld, docSize: %ld", handle, snapshot.metadata.isFromCache, i, snapshot.documents.count, snapshot.documentChanges.count, [self measureDocs:documents]);
+//    NSLog(@"query observer %@ snapshot from cache: %d, cachedDocs: %d of %ld, cachedChanges: %d of %ld, time: %f", handle, snapshot.metadata.isFromCache, i, documents.count, j, snapshot.documentChanges.count, -[startTime timeIntervalSinceNow]);
   };
+}
+
+- (NSUInteger)measureDocs:(NSArray *)docs {
+  NSArray *mine = docs.copy;
+  for (NSMutableDictionary *doc in mine) {
+    NSMutableDictionary *data = doc[@"data"];
+    for (NSString *key in data.allKeys) {
+      if (data[key] == [NSNull null]) {
+        data[key] = @(0);
+      }
+    }
+  }
+  NSError *e;
+  NSData *data = [NSPropertyListSerialization dataWithPropertyList:docs format:NSPropertyListBinaryFormat_v1_0 options:0 error:&e];
+  if (e != nil) {
+    NSLog(@"error: %@", e);
+  }
+  return data.length;
 }
 
 - (FIRDocumentSnapshotBlock)getDocumentObserver:(NSNumber *)handle {
