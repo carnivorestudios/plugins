@@ -50,7 +50,7 @@ class ImagePicker {
   /// If specified, the image will be at most [maxWidth] wide and
   /// [maxHeight] tall. Otherwise the image will be returned at it's
   /// original width and height.
-  static Future<File> pickImage({
+  static Future<List<File>> pickImage({
     ImageSource source = ImageSource.askUser,
     SelectMode selectMode = SelectMode.single,
     bool folderMode = false,
@@ -67,7 +67,7 @@ class ImagePicker {
       throw new ArgumentError.value(maxHeight, 'maxHeight can\'t be negative');
     }
 
-    final String path = await _channel.invokeMethod(
+    final List<String> paths = await _channel.invokeMethod(
       'pickImage',
       <String, dynamic>{
         'source': source.index,
@@ -78,6 +78,6 @@ class ImagePicker {
       },
     );
 
-    return new File(path);
+    return paths.map((String p) => new File(p)).toList();
   }
 }
