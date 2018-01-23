@@ -119,8 +119,16 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
     if (requestCode == REQUEST_CODE_PICK) {
       if (resultCode == Activity.RESULT_OK && data != null) {
         ArrayList<Image> images = (ArrayList<Image>) ImagePicker.getImages(data);
-        handleResult(images.get(0));
-        return true;
+
+        Double maxWidth = methodCall.argument("maxWidth");
+        Double maxHeight = methodCall.argument("maxHeight");
+
+        ArrayList<String> processedImages = new ArrayList<>();
+        for(Image image : images) {
+          String processedImagePath = processImage(image, maxWidth, maxHeight);
+          processedImages.add(processedImagePath);
+        }
+        pendingResult.success(processedImages);
       } else if (resultCode != Activity.RESULT_CANCELED) {
         pendingResult.error("PICK_ERROR", "Error picking image", null);
       }
@@ -156,23 +164,32 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
     if (pendingResult != null) {
       Double maxWidth = methodCall.argument("maxWidth");
       Double maxHeight = methodCall.argument("maxHeight");
-      boolean shouldScale = maxWidth != null || maxHeight != null;
+      String processedImagePath = processImage(image, maxWidth, maxHeight);
 
-      if (!shouldScale) {
-        pendingResult.success(image.getPath());
-      } else {
-        try {
-          File imageFile = scaleImage(image, maxWidth, maxHeight);
-          pendingResult.success(imageFile.getPath());
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
+      ArrayList<String> processedImages = new ArrayList<>();
+      processedImages.add(processedImagePath);
+
+      pendingResult.success(processedImages);
 
       pendingResult = null;
       methodCall = null;
     } else {
       throw new IllegalStateException("Received images from picker that were not requested");
+    }
+  }
+
+  private String processImage(Image image, Double maxWidth, Double maxHeight) {
+    boolean shouldScale = maxWidth != null || maxHeight != null;
+
+    if (!shouldScale) {
+      return image.getPath();
+    } else {
+      try {
+        File imageFile = scaleImage(image, maxWidth, maxHeight);
+        return imageFile.getPath();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
