@@ -33,6 +33,9 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
   public static final int REQUEST_CODE_PICK = 2342;
   public static final int REQUEST_CODE_CAMERA = 2343;
 
+  private static final int TYPE_PICTURE = 0;
+  private static final int TYPE_VIDEO = 1;
+
   private static final int SOURCE_ASK_USER = 0;
   private static final int SOURCE_CAMERA = 1;
   private static final int SOURCE_GALLERY = 2;
@@ -75,12 +78,27 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
     if (call.method.equals("pickImage")) {
       int imageSource = call.argument("source");
 
+      int imageType = call.argument("type");
+
+      boolean isVideo;
+
+      switch (imageType) {
+        case TYPE_VIDEO:
+          isVideo = true;
+          break;
+        case TYPE_PICTURE:
+          isVideo = false;
+          break;
+        default:
+          throw new IllegalArgumentException("Invalid media type: " + imageType);
+      }
+
       switch (imageSource) {
         case SOURCE_ASK_USER:
-          ImagePicker.create(activity).single().start(REQUEST_CODE_PICK);
+          ImagePicker.create(activity).single().isVideo(isVideo).start(REQUEST_CODE_PICK);
           break;
         case SOURCE_GALLERY:
-          ImagePicker.create(activity).single().showCamera(false).start(REQUEST_CODE_PICK);
+          ImagePicker.create(activity).single().isVideo(isVideo).showCamera(false).start(REQUEST_CODE_PICK);
           break;
         case SOURCE_CAMERA:
           activity.startActivityForResult(
