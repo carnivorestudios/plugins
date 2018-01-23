@@ -4,9 +4,10 @@
 
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/services.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('$FirebaseDatabase', () {
@@ -16,7 +17,17 @@ void main() {
 
     int mockHandleId = 0;
     final List<MethodCall> log = <MethodCall>[];
-    final FirebaseDatabase database = FirebaseDatabase.instance;
+    final FirebaseApp app = const FirebaseApp(
+      name: 'testApp',
+      options: const FirebaseOptions(
+        googleAppID: '1:1234567890:ios:42424242424242',
+        gcmSenderID: '1234567890',
+        databaseURL: 'https://fake-database-url.firebaseio.com',
+      ),
+    );
+    final String databaseURL = 'https://fake-database-url2.firebaseio.com';
+    final FirebaseDatabase database =
+        new FirebaseDatabase(app: app, databaseURL: databaseURL);
 
     setUp(() async {
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
@@ -35,13 +46,17 @@ void main() {
               await BinaryMessages.handlePlatformMessage(
                 channel.name,
                 channel.codec.encodeMethodCall(
-                    new MethodCall('DoTransaction', <String, dynamic>{
-                  'transactionKey': transactionKey,
-                  'snapshot': <String, dynamic>{
-                    'key': mutableData.key,
-                    'value': mutableData.value,
-                  },
-                })),
+                  new MethodCall(
+                    'DoTransaction',
+                    <String, dynamic>{
+                      'transactionKey': transactionKey,
+                      'snapshot': <String, dynamic>{
+                        'key': mutableData.key,
+                        'value': mutableData.value,
+                      },
+                    },
+                  ),
+                ),
                 (_) {
                   updatedValue = channel.codec.decodeEnvelope(_)['value'];
                 },
@@ -75,10 +90,24 @@ void main() {
       expect(await database.setPersistenceEnabled(true), true);
       expect(
         log,
-        equals(<MethodCall>[
-          const MethodCall('FirebaseDatabase#setPersistenceEnabled', false),
-          const MethodCall('FirebaseDatabase#setPersistenceEnabled', true),
-        ]),
+        <Matcher>[
+          isMethodCall(
+            'FirebaseDatabase#setPersistenceEnabled',
+            arguments: <String, dynamic>{
+              'app': app.name,
+              'databaseURL': databaseURL,
+              'enabled': false,
+            },
+          ),
+          isMethodCall(
+            'FirebaseDatabase#setPersistenceEnabled',
+            arguments: <String, dynamic>{
+              'app': app.name,
+              'databaseURL': databaseURL,
+              'enabled': true,
+            },
+          ),
+        ],
       );
     });
 
@@ -86,9 +115,16 @@ void main() {
       expect(await database.setPersistenceCacheSizeBytes(42), true);
       expect(
         log,
-        equals(<MethodCall>[
-          const MethodCall('FirebaseDatabase#setPersistenceCacheSizeBytes', 42),
-        ]),
+        <Matcher>[
+          isMethodCall(
+            'FirebaseDatabase#setPersistenceCacheSizeBytes',
+            arguments: <String, dynamic>{
+              'app': app.name,
+              'databaseURL': databaseURL,
+              'cacheSize': 42,
+            },
+          ),
+        ],
       );
     });
 
@@ -96,9 +132,15 @@ void main() {
       await database.goOnline();
       expect(
         log,
-        equals(<MethodCall>[
-          const MethodCall('FirebaseDatabase#goOnline'),
-        ]),
+        <Matcher>[
+          isMethodCall(
+            'FirebaseDatabase#goOnline',
+            arguments: <String, dynamic>{
+              'app': app.name,
+              'databaseURL': databaseURL,
+            },
+          ),
+        ],
       );
     });
 
@@ -106,9 +148,15 @@ void main() {
       await database.goOffline();
       expect(
         log,
-        equals(<MethodCall>[
-          const MethodCall('FirebaseDatabase#goOffline'),
-        ]),
+        <Matcher>[
+          isMethodCall(
+            'FirebaseDatabase#goOffline',
+            arguments: <String, dynamic>{
+              'app': app.name,
+              'databaseURL': databaseURL,
+            },
+          ),
+        ],
       );
     });
 
@@ -116,9 +164,15 @@ void main() {
       await database.purgeOutstandingWrites();
       expect(
         log,
-        equals(<MethodCall>[
-          const MethodCall('FirebaseDatabase#purgeOutstandingWrites'),
-        ]),
+        <Matcher>[
+          isMethodCall(
+            'FirebaseDatabase#purgeOutstandingWrites',
+            arguments: <String, dynamic>{
+              'app': app.name,
+              'databaseURL': databaseURL,
+            },
+          ),
+        ],
       );
     });
 
@@ -130,24 +184,28 @@ void main() {
         await database.reference().child('bar').set(value, priority: priority);
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
+          <Matcher>[
+            isMethodCall(
               'DatabaseReference#set',
-              <String, dynamic>{
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
                 'path': 'foo',
                 'value': value,
-                'priority': null
+                'priority': null,
               },
             ),
-            new MethodCall(
+            isMethodCall(
               'DatabaseReference#set',
-              <String, dynamic>{
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
                 'path': 'bar',
                 'value': value,
-                'priority': priority
+                'priority': priority,
               },
             ),
-          ]),
+          ],
         );
       });
       test('update', () async {
@@ -155,12 +213,17 @@ void main() {
         await database.reference().child("foo").update(value);
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
+          <Matcher>[
+            isMethodCall(
               'DatabaseReference#update',
-              <String, dynamic>{'path': 'foo', 'value': value},
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
+                'path': 'foo',
+                'value': value,
+              },
             ),
-          ]),
+          ],
         );
       });
 
@@ -169,12 +232,17 @@ void main() {
         await database.reference().child('foo').setPriority(priority);
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
+          <Matcher>[
+            isMethodCall(
               'DatabaseReference#setPriority',
-              <String, dynamic>{'path': 'foo', 'priority': priority},
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
+                'path': 'foo',
+                'priority': priority,
+              },
             ),
-          ]),
+          ],
         );
       });
 
@@ -191,14 +259,18 @@ void main() {
         });
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
-                'DatabaseReference#runTransaction', <String, dynamic>{
-              'path': 'foo',
-              'transactionKey': 0,
-              'transactionTimeout': 5000
-            }),
-          ]),
+          <Matcher>[
+            isMethodCall(
+              'DatabaseReference#runTransaction',
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
+                'path': 'foo',
+                'transactionKey': 0,
+                'transactionTimeout': 5000,
+              },
+            ),
+          ],
         );
         expect(transactionResult.committed, equals(true));
         expect(transactionResult.dataSnapshot.value,
@@ -221,16 +293,18 @@ void main() {
         await query.keepSynced(true);
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
+          <Matcher>[
+            isMethodCall(
               'Query#keepSynced',
-              <String, dynamic>{
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
                 'path': path,
                 'parameters': <String, dynamic>{},
-                'value': true
+                'value': true,
               },
             ),
-          ]),
+          ],
         );
       });
       test('keepSynced, complex query', () async {
@@ -255,17 +329,61 @@ void main() {
         };
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
+          <Matcher>[
+            isMethodCall(
               'Query#keepSynced',
-              <String, dynamic>{
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
                 'path': path,
                 'parameters': expectedParameters,
                 'value': false
               },
             ),
-          ]),
+          ],
         );
+      });
+      test('observing error events', () async {
+        mockHandleId = 99;
+        const int errorCode = 12;
+        const String errorDetails = 'Some details';
+        final Query query = database.reference().child('some path');
+        Future<Null> simulateError(String errorMessage) async {
+          await BinaryMessages.handlePlatformMessage(
+            channel.name,
+            channel.codec.encodeMethodCall(
+              new MethodCall('Error', <String, dynamic>{
+                'handle': 99,
+                'error': <String, dynamic>{
+                  'code': errorCode,
+                  'message': errorMessage,
+                  'details': errorDetails,
+                },
+              }),
+            ),
+            (_) {},
+          );
+        }
+
+        final AsyncQueue<DatabaseError> errors =
+            new AsyncQueue<DatabaseError>();
+
+        // Subscribe and allow subscription to complete.
+        final StreamSubscription<Event> subscription =
+            query.onValue.listen((_) {}, onError: errors.add);
+        await new Future<Null>.delayed(const Duration(seconds: 0));
+
+        await simulateError('Bad foo');
+        await simulateError('Bad bar');
+        final DatabaseError error1 = await errors.remove();
+        final DatabaseError error2 = await errors.remove();
+        subscription.cancel();
+        expect(error1.code, errorCode);
+        expect(error1.message, 'Bad foo');
+        expect(error1.details, errorDetails);
+        expect(error2.code, errorCode);
+        expect(error2.message, 'Bad bar');
+        expect(error2.details, errorDetails);
       });
       test('observing value events', () async {
         mockHandleId = 87;
@@ -309,24 +427,28 @@ void main() {
 
         expect(
           log,
-          equals(<MethodCall>[
-            new MethodCall(
+          <Matcher>[
+            isMethodCall(
               'Query#observe',
-              <String, dynamic>{
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
                 'path': path,
                 'parameters': <String, dynamic>{},
-                'eventType': '_EventType.value'
+                'eventType': '_EventType.value',
               },
             ),
-            new MethodCall(
+            isMethodCall(
               'Query#removeObserver',
-              <String, dynamic>{
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'databaseURL': databaseURL,
                 'path': path,
                 'parameters': <String, dynamic>{},
                 'handle': 87,
               },
             ),
-          ]),
+          ],
         );
       });
     });
@@ -344,8 +466,7 @@ class AsyncQueue<T> {
   }
 
   Future<T> remove() {
-    final Future<T> result = _completer(_nextToRemove++).future;
-    return result;
+    return _completer(_nextToRemove++).future;
   }
 
   Completer<T> _completer(int index) {
