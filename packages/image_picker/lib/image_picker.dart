@@ -7,6 +7,11 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+enum ImageType {
+  picture,
+  video,
+}
+
 /// Specifies the source where the picked image should come from.
 enum ImageSource {
   /// Let the user choose an image from a source they prefer.
@@ -47,6 +52,7 @@ class ImagePicker {
   /// original width and height.
   static Future<File> pickImage({
     ImageSource source = ImageSource.askUser,
+    ImageType type = ImageType.picture,
     double maxWidth,
     double maxHeight,
   }) async {
@@ -64,6 +70,7 @@ class ImagePicker {
       'pickImage',
       <String, dynamic>{
         'source': source.index,
+        'type': type.index,
         'maxWidth': maxWidth,
         'maxHeight': maxHeight,
       },
