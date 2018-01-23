@@ -7,6 +7,11 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+enum SelectMode {
+  single,
+  multi,
+}
+
 /// Specifies the source where the picked image should come from.
 enum ImageSource {
   /// Let the user choose an image from a source they prefer.
@@ -47,6 +52,8 @@ class ImagePicker {
   /// original width and height.
   static Future<File> pickImage({
     ImageSource source = ImageSource.askUser,
+    SelectMode selectMode = SelectMode.single,
+    bool folderMode = false,
     double maxWidth,
     double maxHeight,
   }) async {
@@ -64,6 +71,8 @@ class ImagePicker {
       'pickImage',
       <String, dynamic>{
         'source': source.index,
+        'mode': selectMode.index,
+        'folderMode': folderMode,
         'maxWidth': maxWidth,
         'maxHeight': maxHeight,
       },

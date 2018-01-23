@@ -37,6 +37,9 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
   private static final int SOURCE_CAMERA = 1;
   private static final int SOURCE_GALLERY = 2;
 
+  private static final int MODE_SINGLE = 0;
+  private static final int MODE_MULTI = 1;
+
   private static final DefaultCameraModule cameraModule = new DefaultCameraModule();
 
   private final PluginRegistry.Registrar registrar;
@@ -74,13 +77,30 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
 
     if (call.method.equals("pickImage")) {
       int imageSource = call.argument("source");
+      boolean folderMode = call.argument("folderMode");
+      int mode = call.argument("mode");
+
+      ImagePicker picker = ImagePicker.create(activity);
+
+      switch (mode) {
+        case MODE_SINGLE:
+          picker = picker.single();
+          break;
+        case MODE_MULTI:
+          picker = picker.multi();
+          break;
+        default:
+          throw new IllegalArgumentException("Invalid select mode: " + mode);
+      }
+
+      picker = picker.folderMode(folderMode);
 
       switch (imageSource) {
         case SOURCE_ASK_USER:
-          ImagePicker.create(activity).single().start(REQUEST_CODE_PICK);
+          picker.start(REQUEST_CODE_PICK);
           break;
         case SOURCE_GALLERY:
-          ImagePicker.create(activity).single().showCamera(false).start(REQUEST_CODE_PICK);
+          picker.showCamera(false).start(REQUEST_CODE_PICK);
           break;
         case SOURCE_CAMERA:
           activity.startActivityForResult(
