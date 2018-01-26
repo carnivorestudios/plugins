@@ -8,6 +8,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.webkit.MimeTypeMap;
+
 import com.esafirm.imagepicker.features.ImagePicker;
 import com.esafirm.imagepicker.features.camera.DefaultCameraModule;
 import com.esafirm.imagepicker.features.camera.OnImageReadyListener;
@@ -78,6 +80,7 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
     if (call.method.equals("pickImage")) {
       int imageSource = call.argument("source");
       boolean folderMode = call.argument("folderMode");
+      boolean includeVideo = call.argument("includeVideo");
       int mode = call.argument("mode");
 
       ImagePicker picker = ImagePicker.create(activity);
@@ -94,6 +97,7 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
       }
 
       picker = picker.folderMode(folderMode);
+      picker = picker.includeVideo(includeVideo);
 
       switch (imageSource) {
         case SOURCE_ASK_USER:
@@ -180,17 +184,29 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
 
   private String processImage(Image image, Double maxWidth, Double maxHeight) {
     boolean shouldScale = maxWidth != null || maxHeight != null;
+    String mimeType = getMimeType(image.getPath());
+    boolean canScale = mimeType != null && mimeType.startsWith("image");
 
-    if (!shouldScale) {
-      return image.getPath();
-    } else {
+    if (canScale & shouldScale) {
       try {
         File imageFile = scaleImage(image, maxWidth, maxHeight);
         return imageFile.getPath();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+    } else {
+      return image.getPath();
     }
+  }
+
+  // From https://stackoverflow.com/questions/8589645/how-to-determine-mime-type-of-file-in-android
+  public static String getMimeType(String url) {
+    String type = null;
+    String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+    if (extension != null) {
+      type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+    }
+    return type;
   }
 
   private File scaleImage(Image image, Double maxWidth, Double maxHeight) throws IOException {

@@ -52,7 +52,10 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: new FloatingActionButton(
         onPressed: () async {
           final List<File> selectedFiles = await ImagePicker.pickImage(
-              folderMode: true, selectMode: SelectMode.multi);
+            folderMode: true,
+            selectMode: SelectMode.multi,
+            includeVideo: true,
+          );
 
           setState(() {
             _imageFiles = selectedFiles;
