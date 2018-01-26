@@ -4,9 +4,11 @@
 
 @import UIKit;
 
-#import "ImagePickerPlugin.h"
 
-@interface FLTImagePickerPlugin ()<UINavigationControllerDelegate, UIImagePickerControllerDelegate>
+#import "ImagePickerPlugin.h"
+#import <QBImagePickerController/QBImagePickerController.h>
+
+@interface FLTImagePickerPlugin ()<UINavigationControllerDelegate, UIImagePickerControllerDelegate, QBImagePickerControllerDelegate>
 @end
 
 static const int SOURCE_ASK_USER = 0;
@@ -16,8 +18,11 @@ static const int SOURCE_GALLERY = 2;
 @implementation FLTImagePickerPlugin {
   FlutterResult _result;
   NSDictionary *_arguments;
-  UIImagePickerController *_imagePickerController;
+  QBImagePickerController *_imagePickerController;
+  UIImagePickerController *_cameraController;
   UIViewController *_viewController;
+  NSArray *_selectedAssets;
+  NSMutableArray *_resultPaths;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -35,7 +40,6 @@ static const int SOURCE_GALLERY = 2;
   self = [super init];
   if (self) {
     _viewController = viewController;
-    _imagePickerController = [[UIImagePickerController alloc] init];
   }
   return self;
 }
@@ -105,9 +109,14 @@ static const int SOURCE_GALLERY = 2;
 
 - (void)showCamera {
   // Camera is not available on simulators
-  if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]) {
-    _imagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
-    [_viewController presentViewController:_imagePickerController animated:YES completion:nil];
+  _cameraController = [[UIImagePickerController alloc] init];
+  _cameraController.delegate = self;
+  NSArray *mediaTypes = [UIImagePickerController availableMediaTypesForSourceType:
+                         UIImagePickerControllerSourceTypeCamera];
+  if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera] && mediaTypes.count > 0) {
+    _cameraController.sourceType = UIImagePickerControllerSourceTypeCamera;
+    _cameraController.mediaTypes = mediaTypes;
+    [_viewController presentViewController:_cameraController animated:YES completion:nil];
   } else {
     [[[UIAlertView alloc] initWithTitle:@"Error"
                                 message:@"Camera not available."
@@ -118,14 +127,62 @@ static const int SOURCE_GALLERY = 2;
 }
 
 - (void)showPhotoLibrary {
-  // No need to check if SourceType is available. It always is.
-  _imagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+  _imagePickerController = [[QBImagePickerController alloc] init];
+  _imagePickerController.delegate = self;
+  _imagePickerController.allowsMultipleSelection = YES;
+  _imagePickerController.showsNumberOfSelectedAssets = YES;
+  NSMutableArray *assetTypes = @[
+                                 @(PHAssetCollectionSubtypeSmartAlbumUserLibrary), // Camera Roll
+                                 @(PHAssetCollectionSubtypeAlbumMyPhotoStream), // My Photo Stream
+                                 @(PHAssetCollectionSubtypeSmartAlbumPanoramas), // Panoramas
+                                 @(PHAssetCollectionSubtypeSmartAlbumVideos), // Videos
+                                 @(PHAssetCollectionSubtypeSmartAlbumBursts) // Bursts
+                                 ].mutableCopy;
+  if (@available(iOS 11, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumAnimated)];
+  }
+  _imagePickerController.assetCollectionSubtypes = assetTypes;
   [_viewController presentViewController:_imagePickerController animated:YES completion:nil];
 }
-
+- (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets {
+  [_viewController dismissViewControllerAnimated:YES completion:nil];
+  _selectedAssets = assets;
+  _resultPaths = [NSMutableArray arrayWithCapacity:assets.count];
+  PHImageManager *manager = [PHImageManager defaultManager];
+  for (PHAsset *asset in assets) {
+    if (asset.mediaType == PHAssetMediaTypeVideo) continue;
+    [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
+      NSString *type = dataUTI.pathExtension;
+      if (_result == nil) return;
+      BOOL done = false;
+      NSString *resultPath = [self writeData:imageData withType:type];
+      if (resultPath != nil) {
+        NSUInteger index = [_selectedAssets indexOfObject:asset];
+        _resultPaths[index] = resultPath;
+        if (_resultPaths.count == _selectedAssets.count) {
+          _result(_resultPaths);
+          done = YES;
+        }
+      } else {
+        _result([FlutterError errorWithCode:@"create_error"
+                                    message:@"Temporary file could not be created"
+                                    details:nil]);
+        done = YES;
+      }
+      
+      if (done) {
+        _selectedAssets = nil;
+        _resultPaths = nil;
+        _result = nil;
+        _arguments = nil;
+        _imagePickerController = nil;
+      }
+    }];
+  }
+}
 - (void)imagePickerController:(UIImagePickerController *)picker
     didFinishPickingMediaWithInfo:(NSDictionary<NSString *, id> *)info {
-  [_imagePickerController dismissViewControllerAnimated:YES completion:nil];
+  [_viewController dismissViewControllerAnimated:YES completion:nil];
   UIImage *image = [info objectForKey:UIImagePickerControllerEditedImage];
   if (image == nil) {
     image = [info objectForKey:UIImagePickerControllerOriginalImage];
@@ -140,15 +197,9 @@ static const int SOURCE_GALLERY = 2;
   }
 
   NSData *data = UIImageJPEGRepresentation(image, 1.0);
-  NSString *tmpDirectory = NSTemporaryDirectory();
-  NSString *guid = [[NSProcessInfo processInfo] globallyUniqueString];
-  // TODO(jackson): Using the cache directory might be better than temporary
-  // directory.
-  NSString *tmpFile = [NSString stringWithFormat:@"image_picker_%@.jpg", guid];
-  NSString *tmpPath = [tmpDirectory stringByAppendingPathComponent:tmpFile];
-  if ([[NSFileManager defaultManager] createFileAtPath:tmpPath contents:data attributes:nil]) {
-      NSArray *pathArray = @[tmpPath];
-      _result(pathArray);
+  NSString *resultPath = [self writeData:data withType:@"jpg"];
+  if (resultPath != nil) {
+      _result(@[tmpPath]);
   } else {
     _result([FlutterError errorWithCode:@"create_error"
                                 message:@"Temporary file could not be created"
@@ -156,6 +207,21 @@ static const int SOURCE_GALLERY = 2;
   }
   _result = nil;
   _arguments = nil;
+  _cameraController = nil;
+}
+
+- (NSString *)writeData:(NSData *)data withType:(NSString *)fileType {
+  NSString *tmpDirectory = NSTemporaryDirectory();
+  NSString *guid = [[NSProcessInfo processInfo] globallyUniqueString];
+  // TODO(jackson): Using the cache directory might be better than temporary
+  // directory.
+  NSString *tmpFile = [NSString stringWithFormat:@"image_picker_%@.%@", guid, fileType];
+  NSString *tmpPath = [tmpDirectory stringByAppendingPathComponent:tmpFile];
+  if ([[NSFileManager defaultManager] createFileAtPath:tmpPath contents:data attributes:nil]) {
+    return tmpPath;
+  } else {
+    return nil;
+  }
 }
 
 // The way we save images to the tmp dir currently throws away all EXIF data
