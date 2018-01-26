@@ -169,7 +169,12 @@ static const int SELECT_MODE_MULTI = 1;
   PHImageManager *manager = [PHImageManager defaultManager];
   for (int i = 0; i < assets.count; i++) {
     PHAsset *asset = assets[i];
-    if (asset.mediaType == PHAssetMediaTypeVideo) {
+    if (@available(iOS 9.1, *) && ((asset.mediaSubtypes & PHAssetMediaSubtypePhotoLive) == PHAssetMediaSubtypePhotoLive)) {
+      [manager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:0 resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
+        [self finishResultWithImage:result];
+      }];
+    }
+    else if (asset.mediaType == PHAssetMediaTypeVideo) {
       [manager requestExportSessionForVideo:asset options:0 exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
         [self exportVideoWithSession:exportSession index:i originalURL:nil];
       }];
@@ -217,15 +222,19 @@ static const int SELECT_MODE_MULTI = 1;
   if (image == nil) {
     image = [info objectForKey:UIImagePickerControllerOriginalImage];
   }
-  image = [self normalizedImage:image];
+  [self finishResultWithImage:image];
+}
 
+- (void)finishResultWithImage:(UIImage *)image {
+  image = [self normalizedImage:image];
+  
   NSNumber *maxWidth = [_arguments objectForKey:@"maxWidth"];
   NSNumber *maxHeight = [_arguments objectForKey:@"maxHeight"];
-
+  
   if (maxWidth != (id)[NSNull null] || maxHeight != (id)[NSNull null]) {
     image = [self scaledImage:image maxWidth:maxWidth maxHeight:maxHeight];
   }
-
+  
   NSData *data = UIImageJPEGRepresentation(image, 1.0);
   _selectedAssets = @[image];
   [self finishResultWithPath:[self writeData:data withType:@"jpg"] index:0];
