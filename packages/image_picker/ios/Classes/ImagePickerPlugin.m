@@ -16,11 +16,14 @@ static const int SOURCE_ASK_USER = 0;
 static const int SOURCE_CAMERA = 1;
 static const int SOURCE_GALLERY = 2;
 
+static const int SELECT_MODE_SINGLE = 0;
+static const int SELECT_MODE_MULTI = 1;
+
 @implementation FLTImagePickerPlugin {
   FlutterResult _result;
   NSDictionary *_arguments;
-  QBImagePickerController *_imagePickerController;
-  UIImagePickerController *_cameraController;
+  QBImagePickerController *_multiImagePickerController;
+  UIImagePickerController *_singleImagePickerController;
   UIViewController *_viewController;
   NSArray *_selectedAssets;
   NSMutableArray *_resultPaths;
@@ -54,8 +57,8 @@ static const int SOURCE_GALLERY = 2;
   }
 
   if ([@"pickImage" isEqualToString:call.method]) {
-    _imagePickerController.modalPresentationStyle = UIModalPresentationCurrentContext;
-    _imagePickerController.delegate = self;
+    _multiImagePickerController.modalPresentationStyle = UIModalPresentationCurrentContext;
+    _multiImagePickerController.delegate = self;
 
     _result = result;
     _arguments = call.arguments;
@@ -110,14 +113,15 @@ static const int SOURCE_GALLERY = 2;
 
 - (void)showCamera {
   // Camera is not available on simulators
-  _cameraController = [[UIImagePickerController alloc] init];
-  _cameraController.delegate = self;
-  NSArray *mediaTypes = [UIImagePickerController availableMediaTypesForSourceType:
-                         UIImagePickerControllerSourceTypeCamera];
+  _singleImagePickerController = [[UIImagePickerController alloc] init];
+  _singleImagePickerController.delegate = self;
+  BOOL includeVideo = [[_arguments objectForKey:@"includeVideo"] boolValue];
+  NSArray *mediaTypes = includeVideo ? [UIImagePickerController availableMediaTypesForSourceType:
+                                        UIImagePickerControllerSourceTypeCamera] : @[(NSString *)kUTTypeImage];
   if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera] && mediaTypes.count > 0) {
-    _cameraController.sourceType = UIImagePickerControllerSourceTypeCamera;
-    _cameraController.mediaTypes = mediaTypes;
-    [_viewController presentViewController:_cameraController animated:YES completion:nil];
+    _singleImagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+    _singleImagePickerController.mediaTypes = mediaTypes;
+    [_viewController presentViewController:_singleImagePickerController animated:YES completion:nil];
   } else {
     [[[UIAlertView alloc] initWithTitle:@"Error"
                                 message:@"Camera not available."
@@ -128,10 +132,20 @@ static const int SOURCE_GALLERY = 2;
 }
 
 - (void)showPhotoLibrary {
-  _imagePickerController = [[QBImagePickerController alloc] init];
-  _imagePickerController.delegate = self;
-  _imagePickerController.allowsMultipleSelection = YES;
-  _imagePickerController.showsNumberOfSelectedAssets = YES;
+  int selectMode = [[_arguments objectForKey:@"mode"] intValue];
+  if (selectMode == SELECT_MODE_SINGLE) {
+    [self showSingleSelectLibrary];
+  }
+  else {
+    [self showMultiSelectLibrary];
+  }
+}
+
+- (void)showMultiSelectLibrary {
+  _multiImagePickerController = [[QBImagePickerController alloc] init];
+  _multiImagePickerController.delegate = self;
+  _multiImagePickerController.allowsMultipleSelection = YES;
+  _multiImagePickerController.showsNumberOfSelectedAssets = YES;
   NSMutableArray *assetTypes = @[
                                  @(PHAssetCollectionSubtypeSmartAlbumUserLibrary), // Camera Roll
                                  @(PHAssetCollectionSubtypeAlbumMyPhotoStream), // My Photo Stream
@@ -142,9 +156,12 @@ static const int SOURCE_GALLERY = 2;
   if (@available(iOS 11, *)) {
     [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumAnimated)];
   }
-  _imagePickerController.assetCollectionSubtypes = assetTypes;
-  [_viewController presentViewController:_imagePickerController animated:YES completion:nil];
+  _multiImagePickerController.assetCollectionSubtypes = assetTypes;
+  BOOL includeVideo = [[_arguments objectForKey:@"includeVideo"] boolValue];
+  _multiImagePickerController.mediaType = includeVideo ? QBImagePickerMediaTypeAny : QBImagePickerMediaTypeImage;
+  [_viewController presentViewController:_multiImagePickerController animated:YES completion:nil];
 }
+
 - (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets {
   [_viewController dismissViewControllerAnimated:YES completion:nil];
   _selectedAssets = assets;
@@ -164,6 +181,17 @@ static const int SOURCE_GALLERY = 2;
       }];
     }
   }
+}
+
+- (void)showSingleSelectLibrary {
+  _singleImagePickerController = [[UIImagePickerController alloc] init];
+  _singleImagePickerController.delegate = self;
+  BOOL includeVideo = [[_arguments objectForKey:@"includeVideo"] boolValue];
+  NSArray *mediaTypes = includeVideo ? [UIImagePickerController availableMediaTypesForSourceType:
+                                        UIImagePickerControllerSourceTypePhotoLibrary] : @[(NSString *)kUTTypeImage];
+  _singleImagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+  _singleImagePickerController.mediaTypes = mediaTypes;
+  [_viewController presentViewController:_singleImagePickerController animated:YES completion:nil];
 }
 
 - (void)qb_imagePickerControllerDidCancel:(QBImagePickerController *)imagePickerController {
@@ -244,8 +272,8 @@ static const int SOURCE_GALLERY = 2;
   _resultPaths = nil;
   _result = nil;
   _arguments = nil;
-  _imagePickerController = nil;
-  _cameraController = nil;
+  _multiImagePickerController = nil;
+  _singleImagePickerController = nil;
 }
 
 - (NSString *)writeData:(NSData *)data withType:(NSString *)fileType {
