@@ -164,28 +164,7 @@ static const int SELECT_MODE_MULTI = 1;
 
 - (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingAssets:(NSArray *)assets {
   [_viewController dismissViewControllerAnimated:YES completion:nil];
-  _selectedAssets = assets;
-  _resultPaths = [NSMutableArray arrayWithCapacity:assets.count];
-  PHImageManager *manager = [PHImageManager defaultManager];
-  for (int i = 0; i < assets.count; i++) {
-    PHAsset *asset = assets[i];
-    if (@available(iOS 9.1, *) && ((asset.mediaSubtypes & PHAssetMediaSubtypePhotoLive) == PHAssetMediaSubtypePhotoLive)) {
-      [manager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:0 resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
-        [self finishResultWithImage:result];
-      }];
-    }
-    else if (asset.mediaType == PHAssetMediaTypeVideo) {
-      [manager requestExportSessionForVideo:asset options:0 exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
-        [self exportVideoWithSession:exportSession index:i originalURL:nil];
-      }];
-    }
-    else {
-      [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
-        NSString *type = dataUTI.pathExtension;
-        [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
-      }];
-    }
-  }
+  [self finishResultWithAssets:assets];
 }
 
 - (void)showSingleSelectLibrary {
@@ -208,6 +187,15 @@ static const int SELECT_MODE_MULTI = 1;
 - (void)imagePickerController:(UIImagePickerController *)picker
     didFinishPickingMediaWithInfo:(NSDictionary<NSString *, id> *)info {
   [_viewController dismissViewControllerAnimated:YES completion:nil];
+  NSURL *imageUrl = [info objectForKey:UIImagePickerControllerImageURL];
+  NSString *extension = imageUrl.pathExtension.lowercaseString;
+  if ([extension isEqualToString:@"gif"] || [extension isEqualToString:@"png"]) {
+    PHAsset *asset = [info objectForKey:UIImagePickerControllerPHAsset];
+    if (asset != nil) {
+      [self finishResultWithAssets:@[asset]];
+      return;
+    }
+  }
   _resultPaths = [NSMutableArray arrayWithCapacity:1];
   if ([[info valueForKey:UIImagePickerControllerMediaType] isEqualToString:(NSString*)kUTTypeMovie]) {
     NSURL *url = [info valueForKey:UIImagePickerControllerMediaURL];
@@ -223,6 +211,31 @@ static const int SELECT_MODE_MULTI = 1;
     image = [info objectForKey:UIImagePickerControllerOriginalImage];
   }
   [self finishResultWithImage:image];
+}
+
+- (void)finishResultWithAssets:(NSArray *)assets {
+  _selectedAssets = assets;
+  _resultPaths = [NSMutableArray arrayWithCapacity:assets.count];
+  PHImageManager *manager = [PHImageManager defaultManager];
+  for (int i = 0; i < assets.count; i++) {
+    PHAsset *asset = assets[i];
+    if (@available(iOS 9.1, *) && ((asset.mediaSubtypes & PHAssetMediaSubtypePhotoLive) == PHAssetMediaSubtypePhotoLive)) {
+      [manager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:0 resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
+        [self finishResultWithImage:result];
+      }];
+    }
+    else if (asset.mediaType == PHAssetMediaTypeVideo) {
+      [manager requestExportSessionForVideo:asset options:0 exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
+        [self exportVideoWithSession:exportSession index:i originalURL:nil];
+      }];
+    }
+    else {
+      [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
+        NSString *type = dataUTI.pathExtension;
+        [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
+      }];
+    }
+  }
 }
 
 - (void)finishResultWithImage:(UIImage *)image {
