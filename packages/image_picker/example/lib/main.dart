@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_example/media_view.dart';
 
 void main() {
   runApp(new MyApp());
@@ -43,8 +44,8 @@ class _MyHomePageState extends State<MyHomePage> {
         child: _imageFiles != null
             ? new GridView.extent(
                 maxCrossAxisExtent: 120.0,
-                children: _imageFiles.map((f) {
-                  return new Image.file(f);
+                children: _imageFiles.map((File f) {
+                  return new MediaFileView(f);
                 }).toList(growable: false),
               )
             : const Text('You have not yet picked an image.'),
@@ -55,6 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
             folderMode: true,
             selectMode: SelectMode.multi,
             includeVideo: true,
+            maxWidth: 128.0
           );
 
           setState(() {
