@@ -141,22 +141,44 @@ static const int SELECT_MODE_MULTI = 1;
   }
 }
 
+- (NSArray *)getAssetTypes {
+  NSMutableArray *assetTypes = [NSMutableArray array];
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumUserLibrary)];
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumFavorites)];
+  if (@available(iOS 9, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumScreenshots)];
+  }
+  if (@available(iOS 11, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumAnimated)];
+  }
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumVideos)];
+  if (@available(iOS 9, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumSelfPortraits)];
+  }
+  if (@available(iOS 10.3, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumLivePhotos)];
+  }
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumPanoramas)];
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumTimelapses)];
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumSlomoVideos)];
+  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumBursts)];
+  if (@available(iOS 10.2, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumDepthEffect)];
+  }
+  if (@available(iOS 11, *)) {
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumLongExposures)];
+  }
+  [assetTypes addObject:@(PHAssetCollectionSubtypeAlbumMyPhotoStream)];
+  return assetTypes;
+}
+
 - (void)showMultiSelectLibrary {
   _multiImagePickerController = [[QBImagePickerController alloc] init];
   _multiImagePickerController.delegate = self;
   _multiImagePickerController.allowsMultipleSelection = YES;
   _multiImagePickerController.showsNumberOfSelectedAssets = YES;
-  NSMutableArray *assetTypes = @[
-                                 @(PHAssetCollectionSubtypeSmartAlbumUserLibrary), // Camera Roll
-                                 @(PHAssetCollectionSubtypeAlbumMyPhotoStream), // My Photo Stream
-                                 @(PHAssetCollectionSubtypeSmartAlbumPanoramas), // Panoramas
-                                 @(PHAssetCollectionSubtypeSmartAlbumVideos), // Videos
-                                 @(PHAssetCollectionSubtypeSmartAlbumBursts) // Bursts
-                                 ].mutableCopy;
-  if (@available(iOS 11, *)) {
-    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumAnimated)];
-  }
-  _multiImagePickerController.assetCollectionSubtypes = assetTypes;
+
+  _multiImagePickerController.assetCollectionSubtypes = [self getAssetTypes];
   BOOL includeVideo = [[_arguments objectForKey:@"includeVideo"] boolValue];
   _multiImagePickerController.mediaType = includeVideo ? QBImagePickerMediaTypeAny : QBImagePickerMediaTypeImage;
   [_viewController presentViewController:_multiImagePickerController animated:YES completion:nil];
