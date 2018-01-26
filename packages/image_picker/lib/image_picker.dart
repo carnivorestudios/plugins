@@ -54,6 +54,7 @@ class ImagePicker {
     ImageSource source = ImageSource.askUser,
     SelectMode selectMode = SelectMode.single,
     bool folderMode = false,
+    bool includeVideo = false,
     double maxWidth,
     double maxHeight,
   }) async {
@@ -73,6 +74,7 @@ class ImagePicker {
         'source': source.index,
         'mode': selectMode.index,
         'folderMode': folderMode,
+        'includeVideo': includeVideo,
         'maxWidth': maxWidth,
         'maxHeight': maxHeight,
       },
