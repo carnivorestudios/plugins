@@ -7,6 +7,7 @@
 
 #import "ImagePickerPlugin.h"
 #import <QBImagePickerController/QBImagePickerController.h>
+#import <MobileCoreServices/MobileCoreServices.h>
 
 @interface FLTImagePickerPlugin ()<UINavigationControllerDelegate, UIImagePickerControllerDelegate, QBImagePickerControllerDelegate>
 @end
@@ -153,26 +154,37 @@ static const int SOURCE_GALLERY = 2;
     PHAsset *asset = assets[i];
     if (asset.mediaType == PHAssetMediaTypeVideo) {
       [manager requestExportSessionForVideo:asset options:0 exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
-        exportSession.outputFileType = AVFileTypeMPEG4;
-        NSString *fileName = [self createFileNameForType:exportSession.outputFileType.pathExtension];
-        NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
-        NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
-        NSLog(@"output url: %@", outputURL);
-        exportSession.outputURL = outputURL;
-        [exportSession exportAsynchronouslyWithCompletionHandler:^{
-          [self finishResultWithPath:outputURL.path index:i];
-        }];
+        [self exportVideoWithSession:exportSession index:i originalURL:nil];
       }];
     }
-    [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
-      NSString *type = dataUTI.pathExtension;
-      [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
-    }];
+    else {
+      [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
+        NSString *type = dataUTI.pathExtension;
+        [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
+      }];
+    }
   }
 }
+
+- (void)qb_imagePickerControllerDidCancel:(QBImagePickerController *)imagePickerController {
+  [_viewController dismissViewControllerAnimated:YES completion:nil];
+  _result(nil);
+  [self cleanup];
+}
+
 - (void)imagePickerController:(UIImagePickerController *)picker
     didFinishPickingMediaWithInfo:(NSDictionary<NSString *, id> *)info {
   [_viewController dismissViewControllerAnimated:YES completion:nil];
+  _resultPaths = [NSMutableArray arrayWithCapacity:1];
+  if ([[info valueForKey:UIImagePickerControllerMediaType] isEqualToString:(NSString*)kUTTypeMovie]) {
+    NSURL *url = [info valueForKey:UIImagePickerControllerMediaURL];
+    AVAsset *asset = [AVAsset assetWithURL:url];
+    AVAssetExportSession *session = [AVAssetExportSession exportSessionWithAsset:asset presetName:AVAssetExportPresetMediumQuality];
+    _selectedAssets = @[asset];
+    [self exportVideoWithSession:session index:0 originalURL:url];
+    return;
+  }
+  
   UIImage *image = [info objectForKey:UIImagePickerControllerEditedImage];
   if (image == nil) {
     image = [info objectForKey:UIImagePickerControllerOriginalImage];
@@ -188,8 +200,22 @@ static const int SOURCE_GALLERY = 2;
 
   NSData *data = UIImageJPEGRepresentation(image, 1.0);
   _selectedAssets = @[image];
-  _resultPaths = [NSMutableArray arrayWithCapacity:1];
   [self finishResultWithPath:[self writeData:data withType:@"jpg"] index:0];
+}
+
+- (void)exportVideoWithSession:(AVAssetExportSession *)exportSession index:(NSUInteger)index originalURL:(NSURL *)originalURL {
+  exportSession.outputFileType = AVFileTypeMPEG4;
+  NSString *fileName = [self createFileNameForType:@"mp4"];
+  NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
+  NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
+  NSLog(@"output url: %@", outputURL);
+  exportSession.outputURL = outputURL;
+  [exportSession exportAsynchronouslyWithCompletionHandler:^{
+    [self finishResultWithPath:outputURL.path index:index];
+    if (originalURL != nil) {
+      [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
+    }
+  }];
 }
 
 - (void)finishResultWithPath:(NSString *)resultPath index:(NSUInteger)index {
@@ -209,13 +235,17 @@ static const int SOURCE_GALLERY = 2;
   }
   
   if (done) {
-    _selectedAssets = nil;
-    _resultPaths = nil;
-    _result = nil;
-    _arguments = nil;
-    _imagePickerController = nil;
-    _cameraController = nil;
+    [self cleanup];
   }
+}
+
+- (void)cleanup {
+  _selectedAssets = nil;
+  _resultPaths = nil;
+  _result = nil;
+  _arguments = nil;
+  _imagePickerController = nil;
+  _cameraController = nil;
 }
 
 - (NSString *)writeData:(NSData *)data withType:(NSString *)fileType {
