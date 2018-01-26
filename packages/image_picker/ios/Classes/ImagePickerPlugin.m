@@ -149,34 +149,24 @@ static const int SOURCE_GALLERY = 2;
   _selectedAssets = assets;
   _resultPaths = [NSMutableArray arrayWithCapacity:assets.count];
   PHImageManager *manager = [PHImageManager defaultManager];
-  for (PHAsset *asset in assets) {
-    if (asset.mediaType == PHAssetMediaTypeVideo) continue;
+  for (int i = 0; i < assets.count; i++) {
+    PHAsset *asset = assets[i];
+    if (asset.mediaType == PHAssetMediaTypeVideo) {
+      [manager requestExportSessionForVideo:asset options:0 exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
+        exportSession.outputFileType = AVFileTypeMPEG4;
+        NSString *fileName = [self createFileNameForType:exportSession.outputFileType.pathExtension];
+        NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
+        NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
+        NSLog(@"output url: %@", outputURL);
+        exportSession.outputURL = outputURL;
+        [exportSession exportAsynchronouslyWithCompletionHandler:^{
+          [self finishResultWithPath:outputURL.path index:i];
+        }];
+      }];
+    }
     [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
       NSString *type = dataUTI.pathExtension;
-      if (_result == nil) return;
-      BOOL done = false;
-      NSString *resultPath = [self writeData:imageData withType:type];
-      if (resultPath != nil) {
-        NSUInteger index = [_selectedAssets indexOfObject:asset];
-        _resultPaths[index] = resultPath;
-        if (_resultPaths.count == _selectedAssets.count) {
-          _result(_resultPaths);
-          done = YES;
-        }
-      } else {
-        _result([FlutterError errorWithCode:@"create_error"
-                                    message:@"Temporary file could not be created"
-                                    details:nil]);
-        done = YES;
-      }
-      
-      if (done) {
-        _selectedAssets = nil;
-        _resultPaths = nil;
-        _result = nil;
-        _arguments = nil;
-        _imagePickerController = nil;
-      }
+      [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
     }];
   }
 }
@@ -197,31 +187,52 @@ static const int SOURCE_GALLERY = 2;
   }
 
   NSData *data = UIImageJPEGRepresentation(image, 1.0);
-  NSString *resultPath = [self writeData:data withType:@"jpg"];
+  _selectedAssets = @[image];
+  _resultPaths = [NSMutableArray arrayWithCapacity:1];
+  [self finishResultWithPath:[self writeData:data withType:@"jpg"] index:0];
+}
+
+- (void)finishResultWithPath:(NSString *)resultPath index:(NSUInteger)index {
+  if (_result == nil) return;
+  BOOL done = false;
   if (resultPath != nil) {
-      _result(@[tmpPath]);
+    _resultPaths[index] = resultPath;
+    if (_resultPaths.count == _selectedAssets.count) {
+      _result(_resultPaths);
+      done = YES;
+    }
   } else {
     _result([FlutterError errorWithCode:@"create_error"
                                 message:@"Temporary file could not be created"
                                 details:nil]);
+    done = YES;
   }
-  _result = nil;
-  _arguments = nil;
-  _cameraController = nil;
+  
+  if (done) {
+    _selectedAssets = nil;
+    _resultPaths = nil;
+    _result = nil;
+    _arguments = nil;
+    _imagePickerController = nil;
+    _cameraController = nil;
+  }
 }
 
 - (NSString *)writeData:(NSData *)data withType:(NSString *)fileType {
-  NSString *tmpDirectory = NSTemporaryDirectory();
-  NSString *guid = [[NSProcessInfo processInfo] globallyUniqueString];
   // TODO(jackson): Using the cache directory might be better than temporary
   // directory.
-  NSString *tmpFile = [NSString stringWithFormat:@"image_picker_%@.%@", guid, fileType];
-  NSString *tmpPath = [tmpDirectory stringByAppendingPathComponent:tmpFile];
+  NSString *tmpDirectory = NSTemporaryDirectory();
+  NSString *tmpPath = [tmpDirectory stringByAppendingPathComponent:[self createFileNameForType:fileType]];
   if ([[NSFileManager defaultManager] createFileAtPath:tmpPath contents:data attributes:nil]) {
     return tmpPath;
   } else {
     return nil;
   }
+}
+
+- (NSString *)createFileNameForType:(NSString *)type {
+  NSString *guid = [[NSProcessInfo processInfo] globallyUniqueString];
+  return [NSString stringWithFormat:@"image_picker_%@.%@", guid, type];
 }
 
 // The way we save images to the tmp dir currently throws away all EXIF data
