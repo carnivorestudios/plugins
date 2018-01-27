@@ -48,7 +48,7 @@ int nextHandle = 0;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
-  [FirebaseAuthPlugin signOutIfFirstLaunch];
+  [FLTFirebaseAuthPlugin signOutIfFirstLaunch];
   FlutterMethodChannel *channel =
       [FlutterMethodChannel methodChannelWithName:@"plugins.flutter.io/firebase_auth"
                                   binaryMessenger:[registrar messenger]];

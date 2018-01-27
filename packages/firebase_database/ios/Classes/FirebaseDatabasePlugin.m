@@ -154,7 +154,8 @@ id roundDoubles(id value) {
 }
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
-  FIRDatabase *database;
+@try{  
+FIRDatabase *database;
   NSString *appName = call.arguments[@"app"];
   NSString *databaseURL = call.arguments[@"databaseURL"];
   if (![appName isEqual:[NSNull null]] && ![databaseURL isEqual:[NSNull null]]) {
@@ -311,6 +312,10 @@ id roundDoubles(id value) {
     result(nil);
   } else {
     result(FlutterMethodNotImplemented);
+  }
+  }
+  @catch (NSException *e) {
+    result([FlutterError errorWithCode:e.name message:e.reason details:nil]);
   }
 }
 
