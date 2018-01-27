@@ -1,3 +1,43 @@
+## 0.3.4
+
+* Allow null values for Query startAt, endAt, and equalTo
+
+## 0.3.3
+
+* Support to specify a database by URL if required 
+
+## 0.3.2
+
+* Fix warnings from the Dart 2.0 analyzer.
+* Simplified and upgraded Android project template to Android SDK 27.
+* Updated package description.
+
+## 0.3.1
+
+* Fix function name collision when using Firebase Database and Cloud Firestore together on iOS.
+
+## 0.3.0
+
+* **Breaking change**. Upgraded to Gradle 4.1 and Android Studio Gradle plugin
+  3.0.1. Older Flutter projects need to upgrade their Gradle setup as well in
+  order to use this version of the plugin. Instructions can be found
+  [here](https://github.com/flutter/flutter/wiki/Updating-Flutter-projects-to-Gradle-4.1-and-Android-Studio-Gradle-plugin-3.0.1).
+
+## 0.2.0
+
+* Support for multiple databases, new dependency on firebase_core
+* Relax GMS dependency to 11.+
+
+## 0.1.4
+
+* Add FLT prefix to iOS types
+* Avoid error when clearing FirebaseSortedList
+
+## 0.1.3
+
+* Fix memory leak in FirebaseAnimatedList
+* Change GMS dependency to 11.4.+
+
 ## 0.1.2
 
 * Change GMS dependency to 11.+

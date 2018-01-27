@@ -16,10 +16,10 @@ static void logWarning(NSString *format, ...) {
   NSLog(@"FirebaseAdMobPlugin <Warning> %@", message);
 }
 
-@implementation MobileAd
+@implementation FLTMobileAd
 NSNumber *_mobileAdId;
 FlutterMethodChannel *_channel;
-MobileAdStatus _status;
+FLTMobileAdStatus _status;
 
 + (void)initialize {
   if (allAds == nil) {
@@ -41,7 +41,7 @@ MobileAdStatus _status;
   [GADMobileAds configureWithApplicationID:appId];
 }
 
-+ (MobileAd *)getAdForId:(NSNumber *)mobileAdId {
++ (FLTMobileAd *)getAdForId:(NSNumber *)mobileAdId {
   return allAds[mobileAdId];
 }
 
@@ -60,7 +60,7 @@ MobileAdStatus _status;
   return self;
 }
 
-- (MobileAdStatus)status {
+- (FLTMobileAdStatus)status {
   return _status;
 }
 
@@ -192,12 +192,13 @@ MobileAdStatus _status;
 }
 @end
 
-@implementation BannerAd
+@implementation FLTBannerAd
 GADBannerView *_banner;
 
 + (instancetype)withId:(NSNumber *)mobileAdId channel:(FlutterMethodChannel *)channel {
-  MobileAd *ad = [MobileAd getAdForId:mobileAdId];
-  return ad != nil ? (BannerAd *)ad : [[BannerAd alloc] initWithId:mobileAdId channel:channel];
+  FLTMobileAd *ad = [FLTMobileAd getAdForId:mobileAdId];
+  return ad != nil ? (FLTBannerAd *)ad
+                   : [[FLTBannerAd alloc] initWithId:mobileAdId channel:channel];
 }
 
 - (void)loadWithUnitId:(NSString *)unitId targetingInfo:(NSDictionary *)targetingInfo {
@@ -206,7 +207,7 @@ GADBannerView *_banner;
   _banner = [[GADBannerView alloc] initWithAdSize:kGADAdSizeBanner];
   _banner.delegate = self;
   _banner.adUnitID = unitId;
-  _banner.rootViewController = [MobileAd rootViewController];
+  _banner.rootViewController = [FLTMobileAd rootViewController];
   [_banner loadRequest:[self createLoadRequest:targetingInfo]];
 }
 
@@ -217,11 +218,30 @@ GADBannerView *_banner;
   }
   if (_status != LOADED) return;
 
-  UIView *screen = [MobileAd rootViewController].view;
+  _banner.translatesAutoresizingMaskIntoConstraints = NO;
+  UIView *screen = [FLTMobileAd rootViewController].view;
+  [screen addSubview:_banner];
+
+#if defined(__IPHONE_11_0) && (__IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_11_0)
+  if (@available(ios 11.0, *)) {
+    UILayoutGuide *guide = screen.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+      [_banner.centerXAnchor constraintEqualToAnchor:guide.centerXAnchor],
+      [_banner.bottomAnchor constraintEqualToAnchor:guide.bottomAnchor]
+    ]];
+  } else {
+    [self placeBannerPreIos11];
+  }
+#else
+  [self placeBannerPreIos11];
+#endif
+}
+
+- (void)placeBannerPreIos11 {
+  UIView *screen = [FLTMobileAd rootViewController].view;
   CGFloat x = screen.frame.size.width / 2 - _banner.frame.size.width / 2;
   CGFloat y = screen.frame.size.height - _banner.frame.size.height;
   _banner.frame = (CGRect){{x, y}, _banner.frame.size};
-  [screen addSubview:_banner];
 }
 
 - (void)adViewDidReceiveAd:(GADBannerView *)adView {
@@ -264,13 +284,13 @@ GADBannerView *_banner;
 }
 @end
 
-@implementation InterstitialAd
+@implementation FLTInterstitialAd
 GADInterstitial *_interstitial;
 
 + (instancetype)withId:(NSNumber *)mobileAdId channel:(FlutterMethodChannel *)channel {
-  MobileAd *ad = [MobileAd getAdForId:mobileAdId];
-  return ad != nil ? (InterstitialAd *)ad
-                   : [[InterstitialAd alloc] initWithId:mobileAdId channel:channel];
+  FLTMobileAd *ad = [FLTMobileAd getAdForId:mobileAdId];
+  return ad != nil ? (FLTInterstitialAd *)ad
+                   : [[FLTInterstitialAd alloc] initWithId:mobileAdId channel:channel];
 }
 
 - (void)loadWithUnitId:(NSString *)unitId targetingInfo:(NSDictionary *)targetingInfo {
@@ -289,7 +309,7 @@ GADInterstitial *_interstitial;
   }
   if (_status != LOADED) return;
 
-  [_interstitial presentFromRootViewController:[MobileAd rootViewController]];
+  [_interstitial presentFromRootViewController:[FLTMobileAd rootViewController]];
 }
 
 - (void)interstitialDidReceiveAd:(GADInterstitial *)ad {

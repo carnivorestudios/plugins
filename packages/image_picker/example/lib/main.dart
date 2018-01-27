@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_example/media_view.dart';
 
 void main() {
   runApp(new MyApp());
@@ -32,7 +32,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  Future<File> _imageFile;
+  List<File> _imageFiles;
 
   @override
   Widget build(BuildContext context) {
@@ -41,19 +41,25 @@ class _MyHomePageState extends State<MyHomePage> {
         title: const Text('Image Picker Example'),
       ),
       body: new Center(
-          child: new FutureBuilder<File>(
-              future: _imageFile,
-              builder: (BuildContext context, AsyncSnapshot<File> snapshot) {
-                if (snapshot.connectionState == ConnectionState.done) {
-                  return new Image.file(snapshot.data);
-                } else {
-                  return const Text('You have not yet picked an image.');
-                }
-              })),
+        child: _imageFiles != null
+            ? new GridView.extent(
+                maxCrossAxisExtent: 120.0,
+                children: _imageFiles.map((File f) {
+                  return new MediaFileView(f);
+                }).toList(growable: false),
+              )
+            : const Text('You have not yet picked an image.'),
+      ),
       floatingActionButton: new FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
+          final List<File> selectedFiles = await ImagePicker.pickImage(
+            folderMode: true,
+            selectMode: SelectMode.multi,
+            includeVideo: true,
+          );
+
           setState(() {
-            _imageFile = ImagePicker.pickImage();
+            _imageFiles = selectedFiles;
           });
         },
         tooltip: 'Pick Image',

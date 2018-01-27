@@ -28,12 +28,12 @@ NSDictionary *toDictionary(id<FIRUserInfo> userInfo) {
   };
 }
 
-@interface FirebaseAuthPlugin ()
+@interface FLTFirebaseAuthPlugin ()
 @property(nonatomic, retain) NSMutableDictionary *authStateChangeListeners;
 @property(nonatomic, retain) FlutterMethodChannel *channel;
 @end
 
-@implementation FirebaseAuthPlugin
+@implementation FLTFirebaseAuthPlugin
 
 // Handles are ints used as indexes into the NSMutableDictionary of active observers
 int nextHandle = 0;
@@ -52,7 +52,7 @@ int nextHandle = 0;
   FlutterMethodChannel *channel =
       [FlutterMethodChannel methodChannelWithName:@"plugins.flutter.io/firebase_auth"
                                   binaryMessenger:[registrar messenger]];
-  FirebaseAuthPlugin *instance = [[FirebaseAuthPlugin alloc] init];
+  FLTFirebaseAuthPlugin *instance = [[FLTFirebaseAuthPlugin alloc] init];
   instance.channel = channel;
   instance.authStateChangeListeners = [[NSMutableDictionary alloc] init];
   [registrar addMethodCallDelegate:instance channel:channel];
@@ -144,6 +144,17 @@ int nextHandle = 0;
                                         completion:^(FIRUser *user, NSError *error) {
                                           [self sendResult:result forUser:user error:error];
                                         }];
+  } else if ([@"updateProfile" isEqualToString:call.method]) {
+    FIRUserProfileChangeRequest *changeRequest = [[FIRAuth auth].currentUser profileChangeRequest];
+    if (call.arguments[@"displayName"]) {
+      changeRequest.displayName = call.arguments[@"displayName"];
+    }
+    if (call.arguments[@"photoUrl"]) {
+      changeRequest.photoURL = call.arguments[@"photoUrl"];
+    }
+    [changeRequest commitChangesWithCompletion:^(NSError *error) {
+      [self sendResult:result forUser:nil error:error];
+    }];
   } else if ([@"signInWithCustomToken" isEqualToString:call.method]) {
     NSString *token = call.arguments[@"token"];
     [[FIRAuth auth] signInWithCustomToken:token

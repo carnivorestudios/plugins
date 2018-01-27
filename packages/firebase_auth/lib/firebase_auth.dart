@@ -14,7 +14,7 @@ class UserInfo {
   UserInfo._(this._data);
 
   /// The provider identifier.
-  String get providerId => _data['providerId'] as String;
+  String get providerId => _data['providerId'];
 
   /// The provider’s user ID for the user.
   String get uid => _data['uid'];
@@ -32,6 +32,23 @@ class UserInfo {
   String toString() {
     return '$runtimeType($_data)';
   }
+}
+
+/// Represents user profile data that can be updated by [updateProfile]
+/// The purpose of having separate class with a map is to give possibility
+/// to check if value was set to null or not provided
+class UserUpdateInfo {
+  /// Container of data that will be send in update request
+  final Map<String, String> _updateData = <String, String>{};
+
+  set displayName(String displayName) =>
+      _updateData["displayName"] = displayName;
+
+  String get displayName => _updateData["displayName"];
+
+  set photoUrl(String photoUri) => _updateData["photoUrl"] = photoUri;
+
+  String get photoUrl => _updateData["photoUrl"];
 }
 
 /// Represents a user.
@@ -59,10 +76,6 @@ class FirebaseUser extends UserInfo {
     return FirebaseAuth.channel.invokeMethod('getIdToken', <String, bool>{
       'refresh': refresh,
     });
-  }
-
-  Future<Null> reload() {
-    return FirebaseAuth.channel.invokeMethod('userReload') as Future<Null>;
   }
 
   @override
@@ -235,29 +248,14 @@ class FirebaseAuth {
     return currentUser;
   }
 
-  Future<Null> sendEmailVerification() async {
-    return await channel.invokeMethod("sendEmailVerification") as Future<Null>;
-  }
-
-  Future<Null> sendPasswordResetEmail(@required String email) async {
-    assert(email != null);
-
+  Future<Null> updateProfile(UserUpdateInfo userUpdateInfo) async {
+    assert(userUpdateInfo != null);
     return await channel.invokeMethod(
-            "sendPasswordResetEmail", <String, String>{"email": email})
-        as Future<Null>;
+      'updateProfile',
+      userUpdateInfo._updateData,
+    );
   }
 
-  Future<Null> updatePassword(
-      @required String currentPassword, @required String newPassword) async {
-    assert(currentPassword != null);
-    assert(newPassword != null);
-    return await channel.invokeMethod("updatePassword", <String, String>{
-      "currentPassword": currentPassword,
-      "newPassword": newPassword
-    }) as Future<Null>;
-  }
-
-  
   /// Links google account with current user and returns [Future<FirebaseUser>]
   ///
   /// throws [PlatformException] when
