@@ -169,6 +169,7 @@ static const int SELECT_MODE_MULTI = 1;
     [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumLongExposures)];
   }
   [assetTypes addObject:@(PHAssetCollectionSubtypeAlbumMyPhotoStream)];
+  [assetTypes addObject:@(PHAssetCollectionSubtypeAlbumCloudShared)];
   return assetTypes;
 }
 
@@ -235,6 +236,18 @@ static const int SELECT_MODE_MULTI = 1;
   [self finishResultWithImage:image];
 }
 
+- (PHVideoRequestOptions *)videoOptions {
+  PHVideoRequestOptions *options = [[PHVideoRequestOptions alloc] init];
+  options.networkAccessAllowed = YES;
+  return options;
+}
+
+- (PHImageRequestOptions *)imageOptions {
+  PHImageRequestOptions *options = [[PHImageRequestOptions alloc] init];
+  options.networkAccessAllowed = YES;
+  return options;
+}
+
 - (void)finishResultWithAssets:(NSArray *)assets {
   _selectedAssets = assets;
   _resultPaths = [NSMutableArray arrayWithCapacity:assets.count];
@@ -242,17 +255,17 @@ static const int SELECT_MODE_MULTI = 1;
   for (int i = 0; i < assets.count; i++) {
     PHAsset *asset = assets[i];
     if (@available(iOS 9.1, *) && ((asset.mediaSubtypes & PHAssetMediaSubtypePhotoLive) == PHAssetMediaSubtypePhotoLive)) {
-      [manager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:0 resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
+      [manager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:[self imageOptions] resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
         [self finishResultWithImage:result];
       }];
     }
     else if (asset.mediaType == PHAssetMediaTypeVideo) {
-      [manager requestExportSessionForVideo:asset options:0 exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
+      [manager requestExportSessionForVideo:asset options:[self videoOptions] exportPreset:AVAssetExportPresetMediumQuality resultHandler:^(AVAssetExportSession * _Nullable exportSession, NSDictionary * _Nullable info) {
         [self exportVideoWithSession:exportSession index:i originalURL:nil];
       }];
     }
     else {
-      [manager requestImageDataForAsset:asset options:0 resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
+      [manager requestImageDataForAsset:asset options:[self imageOptions] resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
         NSString *type = dataUTI.pathExtension;
         [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
       }];
