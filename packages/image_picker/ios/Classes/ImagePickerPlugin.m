@@ -151,7 +151,7 @@ static const int SELECT_MODE_MULTI = 1;
   if (@available(iOS 11, *)) {
     [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumAnimated)];
   }
-  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumVideos)];
+  //  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumVideos)]; //TODO: uncomment once supported
   if (@available(iOS 9, *)) {
     [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumSelfPortraits)];
   }
