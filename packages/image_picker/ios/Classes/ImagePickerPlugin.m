@@ -277,11 +277,12 @@ static const int SELECT_MODE_MULTI = 1;
 
 - (void)exportVideoWithSession:(AVAssetExportSession *)exportSession index:(NSUInteger)index originalURL:(NSURL *)originalURL {
   exportSession.outputFileType = AVFileTypeMPEG4;
+  AVAsset *asset = exportSession.asset;
   NSString *fileName = [self createFileNameForType:@"mp4"];
   NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
   NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
-  NSLog(@"output url: %@", outputURL);
   exportSession.outputURL = outputURL;
+  exportSession.videoComposition = [AVMutableVideoComposition videoCompositionWithPropertiesOfAsset:asset];
   [exportSession exportAsynchronouslyWithCompletionHandler:^{
     [self finishResultWithPath:outputURL.path index:index];
     if (originalURL != nil) {
