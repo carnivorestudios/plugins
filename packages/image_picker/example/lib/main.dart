@@ -56,6 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
             folderMode: true,
             selectMode: SelectMode.multi,
             includeVideo: true,
+            maxItems: 4,
           );
 
           setState(() {

@@ -50,6 +50,8 @@ class ImagePicker {
   /// If specified, the image will be at most [maxWidth] wide and
   /// [maxHeight] tall. Otherwise the image will be returned at it's
   /// original width and height.
+  /// If selectMode == SelectMode.multi, [maxItems] specifies the max number of items the user can pick.
+  /// If maxItems <= 0, the user can pick an unlimited number of items.
   static Future<List<File>> pickImage({
     ImageSource source = ImageSource.askUser,
     SelectMode selectMode = SelectMode.single,
@@ -57,6 +59,7 @@ class ImagePicker {
     bool includeVideo = false,
     double maxWidth,
     double maxHeight,
+    int maxItems = 0,
   }) async {
     assert(source != null);
 
@@ -77,6 +80,7 @@ class ImagePicker {
         'includeVideo': includeVideo,
         'maxWidth': maxWidth,
         'maxHeight': maxHeight,
+        'maxItems': maxItems,
       },
     );
 

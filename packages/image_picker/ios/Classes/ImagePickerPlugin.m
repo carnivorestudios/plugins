@@ -181,7 +181,11 @@ static const int SELECT_MODE_MULTI = 1;
 
   _multiImagePickerController.assetCollectionSubtypes = [self getAssetTypes];
   BOOL includeVideo = [[_arguments objectForKey:@"includeVideo"] boolValue];
+  int maxItems = [[_arguments objectForKey:@"maxItems"] intValue];
   _multiImagePickerController.mediaType = includeVideo ? QBImagePickerMediaTypeAny : QBImagePickerMediaTypeImage;
+  if(maxItems > 0) {
+    _multiImagePickerController.maximumNumberOfSelection = maxItems;
+  }
   [_viewController presentViewController:_multiImagePickerController animated:YES completion:nil];
 }
 
