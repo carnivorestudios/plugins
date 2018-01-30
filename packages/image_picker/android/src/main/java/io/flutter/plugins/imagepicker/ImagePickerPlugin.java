@@ -8,6 +8,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.ExifInterface;
+import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import com.esafirm.imagepicker.features.ImagePicker;
@@ -25,11 +27,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** Location Plugin */
 public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListener {
-  private static String TAG = "flutter";
+  private static String TAG = "ImagePicker";
   private static final String CHANNEL = "image_picker";
 
   public static final int REQUEST_CODE_PICK = 2342;
@@ -260,6 +263,53 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
     fileOutput.write(outputStream.toByteArray());
     fileOutput.close();
 
+    if (shouldDownscale) {
+      copyExif(image.getPath(), scaledCopyPath);
+    }
+
     return imageFile;
+  }
+
+  private void copyExif(String filePathOri, String filePathDest) {
+    try {
+      ExifInterface oldExif = new ExifInterface(filePathOri);
+      ExifInterface newExif = new ExifInterface(filePathDest);
+
+      List<String> attributes =
+          Arrays.asList(
+              "FNumber",
+              "ExposureTime",
+              "ISOSpeedRatings",
+              "GPSAltitude",
+              "GPSAltitudeRef",
+              "FocalLength",
+              "GPSDateStamp",
+              "WhiteBalance",
+              "GPSProcessingMethod",
+              "GPSTimeStamp",
+              "DateTime",
+              "Flash",
+              "GPSLatitude",
+              "GPSLatitudeRef",
+              "GPSLongitude",
+              "GPSLongitudeRef",
+              "Make",
+              "Model",
+              "Orientation");
+      for (String attribute : attributes) {
+        setIfNotNull(oldExif, newExif, attribute);
+      }
+
+      newExif.saveAttributes();
+
+    } catch (Exception ex) {
+      Log.e(TAG, "Error preserving Exif data on selected image: " + ex);
+    }
+  }
+
+  private void setIfNotNull(ExifInterface oldExif, ExifInterface newExif, String property) {
+    if (oldExif.getAttribute(property) != null) {
+      newExif.setAttribute(property, oldExif.getAttribute(property));
+    }
   }
 }
