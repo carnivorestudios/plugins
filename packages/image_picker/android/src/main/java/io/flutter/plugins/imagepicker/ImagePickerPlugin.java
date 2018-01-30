@@ -85,6 +85,7 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
       boolean folderMode = call.argument("folderMode");
       boolean includeVideo = call.argument("includeVideo");
       int mode = call.argument("mode");
+      int maxItems = call.argument("maxItems");
 
       ImagePicker picker = ImagePicker.create(activity);
 
@@ -97,6 +98,10 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
           break;
         default:
           throw new IllegalArgumentException("Invalid select mode: " + mode);
+      }
+
+      if(mode == MODE_MULTI && maxItems > 0) {
+        picker.limit(maxItems);
       }
 
       picker = picker.folderMode(folderMode);
