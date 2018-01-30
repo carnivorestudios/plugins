@@ -26,7 +26,7 @@ static const int SELECT_MODE_MULTI = 1;
   UIImagePickerController *_singleImagePickerController;
   UIViewController *_viewController;
   NSArray *_selectedAssets;
-  NSMutableArray *_resultPaths;
+  NSMutableDictionary *_resultPaths;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -219,7 +219,7 @@ static const int SELECT_MODE_MULTI = 1;
       return;
     }
   }
-  _resultPaths = [NSMutableArray arrayWithCapacity:1];
+  _resultPaths = [NSMutableDictionary dictionaryWithCapacity:1];
   if ([[info valueForKey:UIImagePickerControllerMediaType] isEqualToString:(NSString*)kUTTypeMovie]) {
     NSURL *url = [info valueForKey:UIImagePickerControllerMediaURL];
     AVAsset *asset = [AVAsset assetWithURL:url];
@@ -250,7 +250,7 @@ static const int SELECT_MODE_MULTI = 1;
 
 - (void)finishResultWithAssets:(NSArray *)assets {
   _selectedAssets = assets;
-  _resultPaths = [NSMutableArray arrayWithCapacity:assets.count];
+  _resultPaths = [NSMutableDictionary dictionaryWithCapacity:assets.count];
   PHImageManager *manager = [PHImageManager defaultManager];
   for (int i = 0; i < assets.count; i++) {
     PHAsset *asset = assets[i];
@@ -308,9 +308,9 @@ static const int SELECT_MODE_MULTI = 1;
   if (_result == nil) return;
   BOOL done = false;
   if (resultPath != nil) {
-    _resultPaths[index] = resultPath;
+    _resultPaths[@(index)] = resultPath;
     if (_resultPaths.count == _selectedAssets.count) {
-      _result(_resultPaths);
+      [self sendResults];
       done = YES;
     }
   } else {
@@ -323,6 +323,14 @@ static const int SELECT_MODE_MULTI = 1;
   if (done) {
     [self cleanup];
   }
+}
+
+- (void)sendResults {
+  NSMutableArray *results = [NSMutableArray arrayWithCapacity:_resultPaths.count];
+  for (NSUInteger i = 0; i < _resultPaths.count; i++) {
+    [results addObject:_resultPaths[@(i)]];
+  }
+  _result(results);
 }
 
 - (void)cleanup {
