@@ -13,8 +13,8 @@ class MediaFileView extends StatelessWidget {
   Widget build(BuildContext context) {
     final String mimeType = lookupMimeType(file.path);
 
-    final bool isVideo = mimeType.startsWith("video");
-    final bool isImage = mimeType.startsWith("image");
+    final bool isVideo = mimeType?.startsWith("video") ?? false;
+    final bool isImage = mimeType?.startsWith("image") ?? false;
 
     if (isVideo) {
       return new PlayerLifeCycle(
