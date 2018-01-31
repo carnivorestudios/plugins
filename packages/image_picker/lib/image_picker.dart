@@ -52,7 +52,7 @@ class ImagePicker {
   /// original width and height.
   /// If selectMode == SelectMode.multi, [maxItems] specifies the max number of items the user can pick.
   /// If maxItems <= 0, the user can pick an unlimited number of items.
-  static Future<List<File>> pickImage({
+  static Future<List<ImageResult>> pickImage({
     ImageSource source = ImageSource.askUser,
     SelectMode selectMode = SelectMode.single,
     bool folderMode = false,
@@ -71,7 +71,7 @@ class ImagePicker {
       throw new ArgumentError.value(maxHeight, 'maxHeight can\'t be negative');
     }
 
-    final List<String> paths = await _channel.invokeMethod(
+    final List<Map<String, String>> paths = await _channel.invokeMethod(
       'pickImage',
       <String, dynamic>{
         'source': source.index,
@@ -84,6 +84,25 @@ class ImagePicker {
       },
     );
 
-    return paths.map((String p) => new File(p)).toList();
+    return paths.map((Map<String, String> p) {
+      final ImageResult ir = new ImageResult(
+        p["path"]
+      );
+      if(p.containsKey("width")) {
+        ir.width = int.parse(p["width"]);
+      }
+      if(p.containsKey("height")) {
+        ir.height = int.parse(p["height"]);
+      }
+      return ir;
+    }).toList();
   }
+}
+
+class ImageResult {
+  File file;
+  int width;
+  int height;
+
+  ImageResult(String path) : file = new File(path);
 }
