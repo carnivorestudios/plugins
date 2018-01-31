@@ -271,7 +271,7 @@ static const int SELECT_MODE_MULTI = 1;
     else {
       [manager requestImageDataForAsset:asset options:[self imageOptions] resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
         NSString *type = dataUTI.pathExtension;
-        [self finishResultWithPath:[self writeData:imageData withType:type] index:i];
+        [self finishResultWithPath:[self writeData:imageData withType:type] size: CGSizeMake(asset.pixelWidth, asset.pixelHeight) index:i];
       }];
     }
   }
@@ -289,7 +289,7 @@ static const int SELECT_MODE_MULTI = 1;
   
   NSData *data = UIImageJPEGRepresentation(image, 1.0);
   _selectedAssets = @[image];
-  [self finishResultWithPath:[self writeData:data withType:@"jpg"] index:0];
+  [self finishResultWithPath:[self writeData:data withType:@"jpg"] size:image.size index:0];
 }
 
 - (void)exportVideoWithSession:(AVAssetExportSession *)exportSession index:(NSUInteger)index originalURL:(NSURL *)originalURL {
@@ -299,20 +299,21 @@ static const int SELECT_MODE_MULTI = 1;
   NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
   NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
   exportSession.outputURL = outputURL;
+  AVAssetTrack *videoTrack = [asset tracksWithMediaType:AVMediaTypeVideo];
   exportSession.videoComposition = [AVMutableVideoComposition videoCompositionWithPropertiesOfAsset:asset];
   [exportSession exportAsynchronouslyWithCompletionHandler:^{
-    [self finishResultWithPath:outputURL.path index:index];
+    [self finishResultWithPath:outputURL.path size: videoTrack.naturalSize index:index];
     if (originalURL != nil) {
       [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
     }
   }];
 }
 
-- (void)finishResultWithPath:(NSString *)resultPath index:(NSUInteger)index {
+- (void)finishResultWithPath:(NSString *)resultPath size:(CGSize)size index:(NSUInteger)index {
   if (_result == nil) return;
   BOOL done = false;
   if (resultPath != nil) {
-    _resultPaths[@(index)] = resultPath;
+    _resultPaths[@(index)] = [self makeResultWithPath:resultPath size:size];
     if (_resultPaths.count == _selectedAssets.count) {
       [self sendResults];
       done = YES;
@@ -327,6 +328,12 @@ static const int SELECT_MODE_MULTI = 1;
   if (done) {
     [self cleanup];
   }
+}
+
+- (NSDictionary *)makeResultWithPath:(NSString *)path size:(CGSize)size {
+  return @{@"path": path,
+           @"width": [NSString stringWithFormat:@"%f", size.width],
+           @"height": [NSString stringWithFormat:@"%f", size.height]};
 }
 
 - (void)sendResults {
