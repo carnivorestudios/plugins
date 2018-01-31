@@ -26,7 +26,7 @@ static const int SELECT_MODE_MULTI = 1;
   UIImagePickerController *_singleImagePickerController;
   UIViewController *_viewController;
   NSArray *_selectedAssets;
-  NSMutableDictionary *_resultPaths;
+  NSMutableDictionary *_resultDictionaries;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -223,7 +223,7 @@ static const int SELECT_MODE_MULTI = 1;
       return;
     }
   }
-  _resultPaths = [NSMutableDictionary dictionaryWithCapacity:1];
+  _resultDictionaries = [NSMutableDictionary dictionaryWithCapacity:1];
   if ([[info valueForKey:UIImagePickerControllerMediaType] isEqualToString:(NSString*)kUTTypeMovie]) {
     NSURL *url = [info valueForKey:UIImagePickerControllerMediaURL];
     AVAsset *asset = [AVAsset assetWithURL:url];
@@ -254,7 +254,7 @@ static const int SELECT_MODE_MULTI = 1;
 
 - (void)finishResultWithAssets:(NSArray *)assets {
   _selectedAssets = assets;
-  _resultPaths = [NSMutableDictionary dictionaryWithCapacity:assets.count];
+  _resultDictionaries = [NSMutableDictionary dictionaryWithCapacity:assets.count];
   PHImageManager *manager = [PHImageManager defaultManager];
   for (int i = 0; i < assets.count; i++) {
     PHAsset *asset = assets[i];
@@ -313,8 +313,8 @@ static const int SELECT_MODE_MULTI = 1;
   if (_result == nil) return;
   BOOL done = false;
   if (resultPath != nil) {
-    _resultPaths[@(index)] = [self makeResultWithPath:resultPath size:size];
-    if (_resultPaths.count == _selectedAssets.count) {
+    _resultDictionaries[@(index)] = [self makeResultWithPath:resultPath size:size];
+    if (_resultDictionaries.count == _selectedAssets.count) {
       [self sendResults];
       done = YES;
     }
@@ -332,21 +332,21 @@ static const int SELECT_MODE_MULTI = 1;
 
 - (NSDictionary *)makeResultWithPath:(NSString *)path size:(CGSize)size {
   return @{@"path": path,
-           @"width": [NSString stringWithFormat:@"%f", size.width],
-           @"height": [NSString stringWithFormat:@"%f", size.height]};
+           @"width": [NSString stringWithFormat:@"%d", (int)size.width],
+           @"height": [NSString stringWithFormat:@"%d", (int)size.height]};
 }
 
 - (void)sendResults {
-  NSMutableArray *results = [NSMutableArray arrayWithCapacity:_resultPaths.count];
-  for (NSUInteger i = 0; i < _resultPaths.count; i++) {
-    [results addObject:_resultPaths[@(i)]];
+  NSMutableArray *results = [NSMutableArray arrayWithCapacity:_resultDictionaries.count];
+  for (NSUInteger i = 0; i < _resultDictionaries.count; i++) {
+    [results addObject:_resultDictionaries[@(i)]];
   }
   _result(results);
 }
 
 - (void)cleanup {
   _selectedAssets = nil;
-  _resultPaths = nil;
+  _resultDictionaries = nil;
   _result = nil;
   _arguments = nil;
   _multiImagePickerController = nil;

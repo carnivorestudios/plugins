@@ -85,13 +85,11 @@ class ImagePicker {
     );
 
     return paths.map((Map<String, String> p) {
-      final ImageResult ir = new ImageResult(
-        p["path"]
-      );
-      if(p.containsKey("width")) {
+      final ImageResult ir = new ImageResult(p["path"]);
+      if (p.containsKey("width")) {
         ir.width = int.parse(p["width"]);
       }
-      if(p.containsKey("height")) {
+      if (p.containsKey("height")) {
         ir.height = int.parse(p["height"]);
       }
       return ir;
@@ -103,6 +101,9 @@ class ImageResult {
   File file;
   int width;
   int height;
+  double get aspectRatio => (width == null || height == null)
+      ? null
+      : width.toDouble() / height.toDouble();
 
   ImageResult(String path) : file = new File(path);
 }
