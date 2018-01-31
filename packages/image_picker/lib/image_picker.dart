@@ -105,4 +105,12 @@ class ImageResult {
   int height;
 
   ImageResult(String path) : file = new File(path);
+  /// Returns the aspect ratio expressed as a ratio of width to height. For example,
+  /// a 16:9 width:height aspect ratio would have a value of 16.0/9.0.
+  double get aspectRatio {
+    if(width != null && width > 0 && height != null && height > 0) {
+      return width / height;
+    }
+    return null;
+  }
 }
