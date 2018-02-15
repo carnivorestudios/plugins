@@ -92,6 +92,9 @@ class ImagePicker {
       if (p.containsKey("height")) {
         ir.height = int.parse(p["height"]);
       }
+      if (p.containsKey("thumb")) {
+        ir.thumb = new File(p["thumb"]);
+      }
       return ir;
     }).toList();
   }
@@ -101,9 +104,11 @@ class ImageResult {
   File file;
   int width;
   int height;
+  File thumb;
+
+  ImageResult(String path) : file = new File(path);
+
   double get aspectRatio => (width == null || height == null)
       ? null
       : width.toDouble() / height.toDouble();
-
-  ImageResult(String path) : file = new File(path);
 }

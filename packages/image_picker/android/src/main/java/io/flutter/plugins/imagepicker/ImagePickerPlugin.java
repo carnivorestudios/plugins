@@ -10,6 +10,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
 import android.media.MediaMetadataRetriever;
+import android.media.ThumbnailUtils;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 
@@ -228,7 +230,28 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
             String height = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
             String width = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
 
+            Bitmap bmp = ThumbnailUtils.createVideoThumbnail(image.getPath(), MediaStore.Images.Thumbnails.MINI_KIND);
+
+            //create a file to write bitmap data
+            File videoThumbFile = new File(registrar.context().getCacheDir(), "vid_thumb.png");
+            try {
+                videoThumbFile.createNewFile();
+
+                //Convert bitmap to byte array
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                bmp.compress(Bitmap.CompressFormat.PNG, 0, bos);
+                byte[] bitmapdata = bos.toByteArray();
+
+                FileOutputStream fos = new FileOutputStream(videoThumbFile);
+                fos.write(bitmapdata);
+                fos.flush();
+                fos.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             returnMap.put("path", image.getPath());
+            returnMap.put("thumb", videoThumbFile.getPath());
             returnMap.put("width", width);
             returnMap.put("height", height);
         } else {

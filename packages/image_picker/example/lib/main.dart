@@ -32,7 +32,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<File> _imageFiles;
+  List<ImageResult> _imageFiles;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: _imageFiles != null
             ? new GridView.extent(
                 maxCrossAxisExtent: 120.0,
-                children: _imageFiles.map((File f) {
+                children: _imageFiles.map((ImageResult f) {
                   return new MediaFileView(f);
                 }).toList(growable: false),
               )
@@ -52,14 +52,14 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       floatingActionButton: new FloatingActionButton(
         onPressed: () async {
-          final List<File> selectedFiles = (await ImagePicker.pickImage(
+          final List<ImageResult> selectedFiles = (await ImagePicker.pickImage(
             folderMode: true,
             selectMode: SelectMode.multi,
             includeVideo: true,
             maxItems: 4,
           )).map((ImageResult ir) {
             debugPrint("${ir.file.path}: ${ir.width}x${ir.height}");
-            return ir.file;
+            return ir;
           }).toList();
 
           setState(() {
