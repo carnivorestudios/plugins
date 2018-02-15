@@ -151,7 +151,7 @@ static const int SELECT_MODE_MULTI = 1;
   if (@available(iOS 11, *)) {
     [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumAnimated)];
   }
-  //  [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumVideos)]; //TODO: uncomment once supported
+    [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumVideos)];
   if (@available(iOS 9, *)) {
     [assetTypes addObject:@(PHAssetCollectionSubtypeSmartAlbumSelfPortraits)];
   }
@@ -271,7 +271,7 @@ static const int SELECT_MODE_MULTI = 1;
     else {
       [manager requestImageDataForAsset:asset options:[self imageOptions] resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
         NSString *type = dataUTI.pathExtension;
-        [self finishResultWithPath:[self writeData:imageData withType:type] size: CGSizeMake(asset.pixelWidth, asset.pixelHeight) index:i];
+        [self finishResultWithPath:[self writeData:imageData withFileName:nil type:type] thumbPath:nil size: CGSizeMake(asset.pixelWidth, asset.pixelHeight) index:i];
       }];
     }
   }
@@ -289,7 +289,7 @@ static const int SELECT_MODE_MULTI = 1;
   
   NSData *data = UIImageJPEGRepresentation(image, 1.0);
   _selectedAssets = @[image];
-  [self finishResultWithPath:[self writeData:data withType:@"jpg"] size:image.size index:0];
+  [self finishResultWithPath:[self writeData:data withFileName:nil type:@"jpg"] thumbPath:nil size:image.size index:0];
 }
 
 - (void)exportVideoWithSession:(AVAssetExportSession *)exportSession index:(NSUInteger)index originalURL:(NSURL *)originalURL {
@@ -299,21 +299,30 @@ static const int SELECT_MODE_MULTI = 1;
   NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
   NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
   exportSession.outputURL = outputURL;
-  AVAssetTrack *videoTrack = [asset tracksWithMediaType:AVMediaTypeVideo];
+  AVAssetTrack *videoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
   exportSession.videoComposition = [AVMutableVideoComposition videoCompositionWithPropertiesOfAsset:asset];
+  
+  NSString *thumbName = [fileName stringByReplacingOccurrencesOfString:@".mp4" withString:@".jpg"];
+  AVAssetImageGenerator *generator = [AVAssetImageGenerator assetImageGeneratorWithAsset:asset];
+  generator.videoComposition = exportSession.videoComposition;
+  CGImageRef thumbRef = [generator copyCGImageAtTime:CMTimeMake(0, 1) actualTime:NULL error:NULL];
+  UIImage *thumbImage = [UIImage imageWithCGImage:thumbRef];
+  NSData *thumbData = UIImageJPEGRepresentation(thumbImage, 1.0);
+  NSString *thumbPath = [self writeData:thumbData withFileName:thumbName type:nil];
+  
   [exportSession exportAsynchronouslyWithCompletionHandler:^{
-    [self finishResultWithPath:outputURL.path size: videoTrack.naturalSize index:index];
+    [self finishResultWithPath:outputURL.path thumbPath:thumbPath size: videoTrack.naturalSize index:index];
     if (originalURL != nil) {
       [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
     }
   }];
 }
 
-- (void)finishResultWithPath:(NSString *)resultPath size:(CGSize)size index:(NSUInteger)index {
+- (void)finishResultWithPath:(NSString *)resultPath thumbPath:(NSString *)thumbPath size:(CGSize)size index:(NSUInteger)index {
   if (_result == nil) return;
   BOOL done = false;
   if (resultPath != nil) {
-    _resultDictionaries[@(index)] = [self makeResultWithPath:resultPath size:size];
+    _resultDictionaries[@(index)] = [self makeResultWithPath:resultPath thumbPath:thumbPath size:size];
     if (_resultDictionaries.count == _selectedAssets.count) {
       [self sendResults];
       done = YES;
@@ -330,10 +339,14 @@ static const int SELECT_MODE_MULTI = 1;
   }
 }
 
-- (NSDictionary *)makeResultWithPath:(NSString *)path size:(CGSize)size {
-  return @{@"path": path,
-           @"width": [NSString stringWithFormat:@"%d", (int)size.width],
-           @"height": [NSString stringWithFormat:@"%d", (int)size.height]};
+- (NSDictionary *)makeResultWithPath:(NSString *)path thumbPath:(NSString *)thumbPath size:(CGSize)size {
+  NSMutableDictionary *result = @{@"path": path,
+                                  @"width": [NSString stringWithFormat:@"%d", (int)size.width],
+                                  @"height": [NSString stringWithFormat:@"%d", (int)size.height]}.mutableCopy;
+  if (thumbPath != nil) {
+    result[@"thumb"] = thumbPath;
+  }
+  return result;
 }
 
 - (void)sendResults {
@@ -353,11 +366,14 @@ static const int SELECT_MODE_MULTI = 1;
   _singleImagePickerController = nil;
 }
 
-- (NSString *)writeData:(NSData *)data withType:(NSString *)fileType {
+- (NSString *)writeData:(NSData *)data withFileName:(NSString *)fileName type:(NSString *)fileType {
   // TODO(jackson): Using the cache directory might be better than temporary
   // directory.
+  if (fileName == nil) {
+    fileName = [self createFileNameForType:fileType];
+  }
   NSString *tmpDirectory = NSTemporaryDirectory();
-  NSString *tmpPath = [tmpDirectory stringByAppendingPathComponent:[self createFileNameForType:fileType]];
+  NSString *tmpPath = [tmpDirectory stringByAppendingPathComponent:fileName];
   if ([[NSFileManager defaultManager] createFileAtPath:tmpPath contents:data attributes:nil]) {
     return tmpPath;
   } else {
