@@ -19,17 +19,17 @@
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FlutterMethodChannel *channel =
-      [FlutterMethodChannel methodChannelWithName:@"firebase_messaging"
-                                  binaryMessenger:[registrar messenger]];
+  [FlutterMethodChannel methodChannelWithName:@"firebase_messaging"
+                              binaryMessenger:[registrar messenger]];
   FLTFirebaseMessagingPlugin *instance =
-      [[FLTFirebaseMessagingPlugin alloc] initWithChannel:channel];
+  [[FLTFirebaseMessagingPlugin alloc] initWithChannel:channel];
   [registrar addApplicationDelegate:instance];
   [registrar addMethodCallDelegate:instance channel:channel];
 }
 
 - (instancetype)initWithChannel:(FlutterMethodChannel *)channel {
   self = [super init];
-
+  
   if (self) {
     _channel = channel;
     _resumingFromBackground = NO;
@@ -56,9 +56,9 @@
       notificationTypes |= UIUserNotificationTypeBadge;
     }
     UIUserNotificationSettings *settings =
-        [UIUserNotificationSettings settingsForTypes:notificationTypes categories:nil];
+    [UIUserNotificationSettings settingsForTypes:notificationTypes categories:nil];
     [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
-
+    
     result(nil);
   } else if ([@"configure" isEqualToString:method]) {
     [[UIApplication sharedApplication] registerForRemoteNotifications];
@@ -97,11 +97,28 @@
 #pragma mark - AppDelegate
 
 - (BOOL)application:(UIApplication *)application
-    didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
   if (launchOptions != nil) {
-    _launchNotification = launchOptions[UIApplicationLaunchOptionsRemoteNotificationKey];
+    NSDictionary *notification = launchOptions[UIApplicationLaunchOptionsRemoteNotificationKey];
+    if (![self isSilentNotification:notification]) {
+      _launchNotification = notification;
+    }
   }
   return YES;
+}
+
+- (BOOL)isSilentNotification:(NSDictionary *)notification {
+  if (notification != nil) {
+    NSDictionary *aps = notification[@"aps"];
+    if (aps != nil) {
+      NSNumber *contentAvailable = aps[@"content-available"];
+      if (contentAvailable != nil && contentAvailable.boolValue) {
+        NSLog(@"got silent data launch notif: %@", notification);
+        return YES;
+      }
+    }
+  }
+  return NO;
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
@@ -128,37 +145,43 @@
 }
 
 - (bool)application:(UIApplication *)application
-    didReceiveRemoteNotification:(NSDictionary *)userInfo
-          fetchCompletionHandler:(void (^)(UIBackgroundFetchResult result))completionHandler {
-  [self didReceiveRemoteNotification:userInfo];
+didReceiveRemoteNotification:(NSDictionary *)userInfo
+fetchCompletionHandler:(void (^)(UIBackgroundFetchResult result))completionHandler {
+  if ([self isSilentNotification:userInfo] && [application.delegate respondsToSelector:@selector(handleSilentNotification:)]) {
+    [application.delegate performSelector:@selector(handleSilentNotification:) withObject:userInfo];
+  }
+  else {
+    [self didReceiveRemoteNotification:userInfo];
+  }
   completionHandler(UIBackgroundFetchResultNoData);
   return YES;
 }
 
 - (void)application:(UIApplication *)application
-    didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
+didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
 #ifdef DEBUG
   [[FIRMessaging messaging] setAPNSToken:deviceToken type:FIRMessagingAPNSTokenTypeSandbox];
 #else
   [[FIRMessaging messaging] setAPNSToken:deviceToken type:FIRMessagingAPNSTokenTypeProd];
 #endif
-
+  
   [_channel invokeMethod:@"onToken" arguments:[[FIRInstanceID instanceID] token]];
 }
 
 - (void)application:(UIApplication *)application
-    didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings {
+didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings {
   NSDictionary *settingsDictionary = @{
-    @"sound" : [NSNumber numberWithBool:notificationSettings.types & UIUserNotificationTypeSound],
-    @"badge" : [NSNumber numberWithBool:notificationSettings.types & UIUserNotificationTypeBadge],
-    @"alert" : [NSNumber numberWithBool:notificationSettings.types & UIUserNotificationTypeAlert],
-  };
+                                       @"sound" : [NSNumber numberWithBool:notificationSettings.types & UIUserNotificationTypeSound],
+                                       @"badge" : [NSNumber numberWithBool:notificationSettings.types & UIUserNotificationTypeBadge],
+                                       @"alert" : [NSNumber numberWithBool:notificationSettings.types & UIUserNotificationTypeAlert],
+                                       };
   [_channel invokeMethod:@"onIosSettingsRegistered" arguments:settingsDictionary];
 }
 
 - (void)messaging:(nonnull FIRMessaging *)messaging
-    didRefreshRegistrationToken:(nonnull NSString *)fcmToken {
+didRefreshRegistrationToken:(nonnull NSString *)fcmToken {
   [_channel invokeMethod:@"onToken" arguments:fcmToken];
 }
 
 @end
+
