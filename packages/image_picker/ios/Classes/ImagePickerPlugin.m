@@ -214,13 +214,15 @@ static const int SELECT_MODE_MULTI = 1;
 - (void)imagePickerController:(UIImagePickerController *)picker
     didFinishPickingMediaWithInfo:(NSDictionary<NSString *, id> *)info {
   [_viewController dismissViewControllerAnimated:YES completion:nil];
-  NSURL *imageUrl = [info objectForKey:UIImagePickerControllerImageURL];
-  NSString *extension = imageUrl.pathExtension.lowercaseString;
-  if ([extension isEqualToString:@"gif"] || [extension isEqualToString:@"png"]) {
-    PHAsset *asset = [info objectForKey:UIImagePickerControllerPHAsset];
-    if (asset != nil) {
-      [self finishResultWithAssets:@[asset]];
-      return;
+  if (@available(iOS 11.0, *)) {
+    NSURL *imageUrl = [info objectForKey:UIImagePickerControllerImageURL];
+    NSString *extension = imageUrl.pathExtension.lowercaseString;
+    if ([extension isEqualToString:@"gif"] || [extension isEqualToString:@"png"]) {
+      PHAsset *asset = [info objectForKey:UIImagePickerControllerPHAsset];
+      if (asset != nil) {
+        [self finishResultWithAssets:@[asset]];
+        return;
+      }
     }
   }
   _resultDictionaries = [NSMutableDictionary dictionaryWithCapacity:1];
