@@ -17,7 +17,7 @@ const MethodChannel _kChannel = const MethodChannel('plugins.flutter.io/share');
 ///
 /// May throw [PlatformException] or [FormatException]
 /// from [MethodChannel].
-Future<Null> share(String text, {Offset tapCoordinate}) {
+Future<void> share(String text) {
   assert(text != null && text.isNotEmpty);
   Map args = <String, dynamic>{'text' : text};
   if (tapCoordinate != null) {

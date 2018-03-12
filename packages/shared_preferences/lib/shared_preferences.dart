@@ -22,7 +22,7 @@ class SharedPreferences {
   static SharedPreferences _instance;
   static Future<SharedPreferences> getInstance() async {
     if (_instance == null) {
-      final Map<String, Object> fromSystem =
+      final Map<Object, Object> fromSystem =
           await _kChannel.invokeMethod('getAll');
       assert(fromSystem != null);
       // Strip the flutter. prefix from the returned preferences.
@@ -46,6 +46,9 @@ class SharedPreferences {
   /// in sync since the setter method might fail for any reason.
   final Map<String, Object> _preferenceCache;
 
+  /// Reads a value of any type from persistent storage.
+  dynamic get(String key) => _preferenceCache[key];
+
   /// Reads a value from persistent storage, throwing an exception if it's not a
   /// bool.
   bool getBool(String key) => _preferenceCache[key];
@@ -64,7 +67,14 @@ class SharedPreferences {
 
   /// Reads a set of string values from persistent storage, throwing an
   /// exception if it's not a string set.
-  List<String> getStringList(String key) => _preferenceCache[key];
+  List<String> getStringList(String key) {
+    List<Object> list = _preferenceCache[key];
+    if (list != null && list is! List<String>) {
+      list = list.cast<String>().toList();
+      _preferenceCache[key] = list;
+    }
+    return list;
+  }
 
   /// Saves a boolean [value] to persistent storage in the background.
   ///

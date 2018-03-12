@@ -1,3 +1,28 @@
+## 0.3.0
+
+* **Breaking change**. Set SDK constraints to match the Flutter beta release.
+
+## 0.2.12
+
+* Fix handling of `null` document snapshots (document not exists).
+* Add `DocumentSnapshot.exists`.
+
+## 0.2.11
+* Fix Dart 2 type errors.
+
+## 0.2.10
+* Fix Dart 2 type errors.
+
+## 0.2.9
+* Relax sdk upper bound constraint to  '<2.0.0' to allow 'edge' dart sdk use.
+
+## 0.2.8
+* Support for Query.getDocuments
+
+## 0.2.7
+
+* Add transaction support.
+
 ## 0.2.6
 
 * Build fixes for iOS
