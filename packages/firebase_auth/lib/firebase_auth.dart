@@ -271,14 +271,6 @@ class FirebaseAuth {
     return await channel.invokeMethod("sendEmailVerification") as Future<Null>;
   }
 
-  Future<Null> sendPasswordResetEmail(@required String email) async {
-    assert(email != null);
-
-    return await channel.invokeMethod(
-            "sendPasswordResetEmail", <String, String>{"email": email})
-        as Future<Null>;
-  }
-
   Future<Null> updatePassword(
       @required String currentPassword, @required String newPassword) async {
     assert(currentPassword != null);
@@ -297,7 +289,7 @@ class FirebaseAuth {
     );
   }
 
-  
+
   /// Links google account with current user and returns [Future<FirebaseUser>]
   ///
   /// throws [PlatformException] when
