@@ -273,7 +273,14 @@ static const int SELECT_MODE_MULTI = 1;
     else {
       [manager requestImageDataForAsset:asset options:[self imageOptions] resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
         NSString *type = dataUTI.pathExtension;
-        [self finishResultWithPath:[self writeData:imageData withType:type] size: CGSizeMake(asset.pixelWidth, asset.pixelHeight) index:i];
+        if ([[type lowercaseString] isEqualToString:@"heic"]) {
+          [manager requestImageForAsset:asset targetSize:PHImageManagerMaximumSize contentMode:PHImageContentModeDefault options:[self imageOptions] resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
+            [self finishResultWithImage:result];
+          }];
+        }
+        else {
+          [self finishResultWithPath:[self writeData:imageData withType:type] size: CGSizeMake(asset.pixelWidth, asset.pixelHeight) index:i];
+        }
       }];
     }
   }

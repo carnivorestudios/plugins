@@ -4,6 +4,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/services.dart';
 
@@ -104,6 +105,10 @@ class ImageResult {
   double get aspectRatio => (width == null || height == null)
       ? null
       : width.toDouble() / height.toDouble();
+
+  Size get size => (width == null || height == null)
+      ? null
+      : new Size(width.toDouble(), height.toDouble());
 
   ImageResult(String path) : file = new File(path);
 }
