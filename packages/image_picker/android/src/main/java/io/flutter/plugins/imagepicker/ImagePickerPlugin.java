@@ -215,10 +215,30 @@ public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListe
                     throw new RuntimeException(e);
                 }
             } else {
-                Bitmap bmp = BitmapFactory.decodeFile(image.getPath());
+                try {
+                    ExifInterface exif = new ExifInterface(image.getPath());
+                    int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0);
+                    int width = exif.getAttributeInt(ExifInterface.TAG_IMAGE_WIDTH, 0);
+                    int height = exif.getAttributeInt(ExifInterface.TAG_IMAGE_LENGTH, 0);
 
-                returnMap.put("width", Integer.toString(bmp.getWidth()));
-                returnMap.put("height", Integer.toString(bmp.getHeight()));
+                    switch (orientation) {
+                        case ExifInterface.ORIENTATION_ROTATE_90:
+                        case ExifInterface.ORIENTATION_ROTATE_270:
+                            returnMap.put("width", Integer.toString(height));
+                            returnMap.put("height", Integer.toString(width));
+                            break;
+                        default:
+                            returnMap.put("width", Integer.toString(width));
+                            returnMap.put("height", Integer.toString(height));
+                    }
+
+                } catch (Exception ex) {
+                    Log.e(TAG, "Error getting Exif data from selected image: " + ex);
+                    Bitmap bmp = BitmapFactory.decodeFile(image.getPath());
+
+                    returnMap.put("width", Integer.toString(bmp.getWidth()));
+                    returnMap.put("height", Integer.toString(bmp.getHeight()));
+                }
 
                 returnMap.put("path", image.getPath());
             }
