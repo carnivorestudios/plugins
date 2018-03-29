@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +19,7 @@ void main() {
     final Firestore firestore = Firestore.instance;
     final List<MethodCall> log = <MethodCall>[];
     final CollectionReference collectionReference = firestore.collection('foo');
+    final Transaction transaction = new Transaction(0);
     const Map<String, dynamic> kMockDocumentSnapshotData =
         const <String, dynamic>{'1': 2};
 
@@ -62,6 +64,19 @@ void main() {
               (_) {},
             );
             return handle;
+          case 'Query#getDocuments':
+            return <String, dynamic>{
+              'paths': <String>["${methodCall.arguments['path']}/0"],
+              'documents': <dynamic>[kMockDocumentSnapshotData],
+              'documentChanges': <dynamic>[
+                <String, dynamic>{
+                  'oldIndex': -1,
+                  'newIndex': 0,
+                  'type': 'DocumentChangeType.added',
+                  'document': kMockDocumentSnapshotData,
+                },
+              ],
+            };
           case 'DocumentReference#setData':
             return true;
           case 'DocumentReference#get':
@@ -70,13 +85,106 @@ void main() {
                 'path': 'foo/bar',
                 'data': <String, dynamic>{'key1': 'val1'}
               };
+            } else if (methodCall.arguments['path'] == 'foo/notExists') {
+              return <String, dynamic>{'path': 'foo/notExists', 'data': null};
             }
             throw new PlatformException(code: 'UNKNOWN_PATH');
+          case 'Firestore#runTransaction':
+            return <String, dynamic>{'1': 3};
+          case 'Transaction#get':
+            return <String, dynamic>{
+              'path': 'foo/bar',
+              'data': <String, dynamic>{'key1': 'val1'}
+            };
+          case 'Transaction#set':
+            return null;
+          case 'Transaction#update':
+            return null;
+          case 'Transaction#delete':
+            return null;
+          case 'WriteBatch#create':
+            return 1;
           default:
             return null;
         }
       });
       log.clear();
+    });
+
+    group('Transaction', () {
+      test('runTransaction', () async {
+        final Map<String, dynamic> result = await firestore.runTransaction(
+            (Transaction tx) async {},
+            timeout: new Duration(seconds: 3));
+
+        expect(log, <Matcher>[
+          isMethodCall('Firestore#runTransaction', arguments: <String, dynamic>{
+            'transactionId': 0,
+            'transactionTimeout': 3000
+          }),
+        ]);
+        expect(result, equals(<String, dynamic>{'1': 3}));
+      });
+
+      test('get', () async {
+        final DocumentReference documentReference =
+            Firestore.instance.document('foo/bar');
+        await transaction.get(documentReference);
+        expect(log, <Matcher>[
+          isMethodCall('Transaction#get', arguments: <String, dynamic>{
+            'transactionId': 0,
+            'path': documentReference.path
+          })
+        ]);
+      });
+
+      test('delete', () async {
+        final DocumentReference documentReference =
+            Firestore.instance.document('foo/bar');
+        await transaction.delete(documentReference);
+        expect(log, <Matcher>[
+          isMethodCall('Transaction#delete', arguments: <String, dynamic>{
+            'transactionId': 0,
+            'path': documentReference.path
+          })
+        ]);
+      });
+
+      test('update', () async {
+        final DocumentReference documentReference =
+            Firestore.instance.document('foo/bar');
+        final DocumentSnapshot documentSnapshot = await documentReference.get();
+        final Map<String, dynamic> data = documentSnapshot.data;
+        data['key2'] = 'val2';
+        await transaction.set(documentReference, data);
+        expect(log, <Matcher>[
+          isMethodCall('DocumentReference#get',
+              arguments: <String, dynamic>{'path': 'foo/bar'}),
+          isMethodCall('Transaction#set', arguments: <String, dynamic>{
+            'transactionId': 0,
+            'path': documentReference.path,
+            'data': <String, dynamic>{'key1': 'val1', 'key2': 'val2'}
+          })
+        ]);
+      });
+
+      test('set', () async {
+        final DocumentReference documentReference =
+            Firestore.instance.document('foo/bar');
+        final DocumentSnapshot documentSnapshot = await documentReference.get();
+        final Map<String, dynamic> data = documentSnapshot.data;
+        data['key2'] = 'val2';
+        await transaction.set(documentReference, data);
+        expect(log, <Matcher>[
+          isMethodCall('DocumentReference#get',
+              arguments: <String, dynamic>{'path': 'foo/bar'}),
+          isMethodCall('Transaction#set', arguments: <String, dynamic>{
+            'transactionId': 0,
+            'path': documentReference.path,
+            'data': <String, dynamic>{'key1': 'val1', 'key2': 'val2'}
+          })
+        ]);
+      });
     });
 
     group('CollectionsReference', () {
@@ -88,7 +196,7 @@ void main() {
         expect(document.reference.path, equals('foo/0'));
         expect(document.data, equals(kMockDocumentSnapshotData));
         // Flush the async removeListener call
-        await new Future<Null>.delayed(Duration.ZERO);
+        await new Future<Null>.delayed(Duration.zero);
         expect(log, <Matcher>[
           isMethodCall(
             'Query#addSnapshotListener',
@@ -113,7 +221,7 @@ void main() {
                 .snapshots
                 .listen((QuerySnapshot querySnapshot) {});
         subscription.cancel();
-        await new Future<Null>.delayed(Duration.ZERO);
+        await new Future<Null>.delayed(Duration.zero);
         expect(
           log,
           equals(<Matcher>[
@@ -143,7 +251,7 @@ void main() {
                 .snapshots
                 .listen((QuerySnapshot querySnapshot) {});
         subscription.cancel();
-        await new Future<Null>.delayed(Duration.ZERO);
+        await new Future<Null>.delayed(Duration.zero);
         expect(
           log,
           equals(<Matcher>[
@@ -173,7 +281,7 @@ void main() {
                 .snapshots
                 .listen((QuerySnapshot querySnapshot) {});
         subscription.cancel();
-        await new Future<Null>.delayed(Duration.ZERO);
+        await new Future<Null>.delayed(Duration.zero);
         expect(
           log,
           equals(<Matcher>[
@@ -206,7 +314,7 @@ void main() {
         expect(snapshot.reference.path, equals('path/to/foo'));
         expect(snapshot.data, equals(kMockDocumentSnapshotData));
         // Flush the async removeListener call
-        await new Future<Null>.delayed(Duration.ZERO);
+        await new Future<Null>.delayed(Duration.zero);
         expect(
           log,
           <Matcher>[
@@ -304,6 +412,12 @@ void main() {
         expect(snapshot.reference.path, equals('foo/bar'));
         expect(snapshot.data.containsKey('key1'), equals(true));
         expect(snapshot.data['key1'], equals('val1'));
+        expect(snapshot.exists, isTrue);
+
+        final DocumentSnapshot snapshot2 =
+            await collectionReference.document('notExists').get();
+        expect(snapshot2.data, isNull);
+        expect(snapshot2.exists, isFalse);
 
         try {
           await collectionReference.document('baz').get();
@@ -317,5 +431,223 @@ void main() {
         expect(colRef.path, 'foo/bar/baz');
       });
     });
+
+    group('Query', () {
+      test('getDocuments', () async {
+        final QuerySnapshot snapshot = await collectionReference.getDocuments();
+        final DocumentSnapshot document = snapshot.documents.first;
+        expect(
+          log,
+          equals(
+            <Matcher>[
+              isMethodCall(
+                'Query#getDocuments',
+                arguments: <String, dynamic>{
+                  'path': 'foo',
+                  'parameters': <String, dynamic>{
+                    'where': <List<dynamic>>[],
+                    'orderBy': <List<dynamic>>[],
+                  },
+                },
+              ),
+            ],
+          ),
+        );
+        expect(document.documentID, equals('0'));
+        expect(document.reference.path, equals('foo/0'));
+        expect(document.data, equals(kMockDocumentSnapshotData));
+      });
+    });
+
+    group('FirestoreMessageCodec', () {
+      const MessageCodec<dynamic> codec = const FirestoreMessageCodec();
+      final DateTime testTime = new DateTime(2015, 10, 30, 11, 16);
+      test('should encode and decode simple messages', () {
+        _checkEncodeDecode<dynamic>(codec, testTime);
+        _checkEncodeDecode<dynamic>(
+            codec, const GeoPoint(37.421939, -122.083509));
+        _checkEncodeDecode<dynamic>(codec, firestore.document('foo/bar'));
+      });
+      test('should encode and decode composite message', () {
+        final List<dynamic> message = <dynamic>[
+          testTime,
+          const GeoPoint(37.421939, -122.083509),
+          firestore.document('foo/bar'),
+        ];
+        _checkEncodeDecode<dynamic>(codec, message);
+      });
+    });
+
+    group('WriteBatch', () {
+      test('set', () async {
+        final WriteBatch batch = firestore.batch();
+        batch.setData(
+          collectionReference.document('bar'),
+          <String, String>{'bazKey': 'quxValue'},
+        );
+        await batch.commit();
+        expect(
+          log,
+          <Matcher>[
+            isMethodCall('WriteBatch#create', arguments: null),
+            isMethodCall(
+              'WriteBatch#setData',
+              arguments: <String, dynamic>{
+                'handle': 1,
+                'path': 'foo/bar',
+                'data': <String, String>{'bazKey': 'quxValue'},
+                'options': null,
+              },
+            ),
+            isMethodCall(
+              'WriteBatch#commit',
+              arguments: <String, dynamic>{
+                'handle': 1,
+              },
+            ),
+          ],
+        );
+      });
+      test('merge set', () async {
+        final WriteBatch batch = firestore.batch();
+        batch.setData(
+          collectionReference.document('bar'),
+          <String, String>{'bazKey': 'quxValue'},
+          SetOptions.merge,
+        );
+        await batch.commit();
+        expect(SetOptions.merge, isNotNull);
+        expect(
+          log,
+          <Matcher>[
+            isMethodCall('WriteBatch#create', arguments: null),
+            isMethodCall('WriteBatch#setData', arguments: <String, dynamic>{
+              'handle': 1,
+              'path': 'foo/bar',
+              'data': <String, String>{'bazKey': 'quxValue'},
+              'options': <String, bool>{'merge': true},
+            }),
+            isMethodCall(
+              'WriteBatch#commit',
+              arguments: <String, dynamic>{
+                'handle': 1,
+              },
+            ),
+          ],
+        );
+      });
+      test('update', () async {
+        final WriteBatch batch = firestore.batch();
+        batch.updateData(
+          collectionReference.document('bar'),
+          <String, String>{'bazKey': 'quxValue'},
+        );
+        await batch.commit();
+        expect(
+          log,
+          <Matcher>[
+            isMethodCall('WriteBatch#create', arguments: null),
+            isMethodCall(
+              'WriteBatch#updateData',
+              arguments: <String, dynamic>{
+                'handle': 1,
+                'path': 'foo/bar',
+                'data': <String, String>{'bazKey': 'quxValue'},
+              },
+            ),
+            isMethodCall(
+              'WriteBatch#commit',
+              arguments: <String, dynamic>{
+                'handle': 1,
+              },
+            ),
+          ],
+        );
+      });
+      test('delete', () async {
+        final WriteBatch batch = firestore.batch();
+        batch.delete(collectionReference.document('bar'));
+        await batch.commit();
+        expect(
+          log,
+          <Matcher>[
+            isMethodCall('WriteBatch#create', arguments: null),
+            isMethodCall(
+              'WriteBatch#delete',
+              arguments: <String, dynamic>{
+                'handle': 1,
+                'path': 'foo/bar',
+              },
+            ),
+            isMethodCall(
+              'WriteBatch#commit',
+              arguments: <String, dynamic>{
+                'handle': 1,
+              },
+            ),
+          ],
+        );
+      });
+    });
   });
+}
+
+void _checkEncodeDecode<T>(MessageCodec<T> codec, T message) {
+  final ByteData encoded = codec.encodeMessage(message);
+  final T decoded = codec.decodeMessage(encoded);
+  if (message == null) {
+    expect(encoded, isNull);
+    expect(decoded, isNull);
+  } else {
+    expect(_deepEquals(message, decoded), isTrue);
+    final ByteData encodedAgain = codec.encodeMessage(decoded);
+    expect(
+      encodedAgain.buffer.asUint8List(),
+      orderedEquals(encoded.buffer.asUint8List()),
+    );
+  }
+}
+
+bool _deepEquals(dynamic valueA, dynamic valueB) {
+  if (valueA is TypedData)
+    return valueB is TypedData && _deepEqualsTypedData(valueA, valueB);
+  if (valueA is List) return valueB is List && _deepEqualsList(valueA, valueB);
+  if (valueA is Map) return valueB is Map && _deepEqualsMap(valueA, valueB);
+  if (valueA is double && valueA.isNaN) return valueB is double && valueB.isNaN;
+  return valueA == valueB;
+}
+
+bool _deepEqualsTypedData(TypedData valueA, TypedData valueB) {
+  if (valueA is ByteData) {
+    return valueB is ByteData &&
+        _deepEqualsList(
+            valueA.buffer.asUint8List(), valueB.buffer.asUint8List());
+  }
+  if (valueA is Uint8List)
+    return valueB is Uint8List && _deepEqualsList(valueA, valueB);
+  if (valueA is Int32List)
+    return valueB is Int32List && _deepEqualsList(valueA, valueB);
+  if (valueA is Int64List)
+    return valueB is Int64List && _deepEqualsList(valueA, valueB);
+  if (valueA is Float64List)
+    return valueB is Float64List && _deepEqualsList(valueA, valueB);
+  throw 'Unexpected typed data: $valueA';
+}
+
+bool _deepEqualsList(List<dynamic> valueA, List<dynamic> valueB) {
+  if (valueA.length != valueB.length) return false;
+  for (int i = 0; i < valueA.length; i++) {
+    if (!_deepEquals(valueA[i], valueB[i])) return false;
+  }
+  return true;
+}
+
+bool _deepEqualsMap(
+    Map<dynamic, dynamic> valueA, Map<dynamic, dynamic> valueB) {
+  if (valueA.length != valueB.length) return false;
+  for (final dynamic key in valueA.keys) {
+    if (!valueB.containsKey(key) || !_deepEquals(valueA[key], valueB[key]))
+      return false;
+  }
+  return true;
 }

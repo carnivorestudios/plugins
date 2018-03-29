@@ -1,3 +1,35 @@
+## 0.5.3
+
+* Secure fetchProvidersForEmail (no providers)
+
+## 0.5.2
+
+* Fixed Dart 2 type error in fetchProvidersForEmail.
+
+## 0.5.1
+
+* Added support to fetchProvidersForEmail
+
+## 0.5.0
+
+* **Breaking change**. Set SDK constraints to match the Flutter beta release.
+
+## 0.4.7
+
+* Fixed Dart 2 type errors.
+
+## 0.4.6
+
+* Fixed Dart 2 type errors.
+
+## 0.4.5
+
+* Enabled use in Swift projects.
+
+## 0.4.4
+
+* Added support for sendPasswordResetEmail
+
 ## 0.4.3
 
 * Moved to the io.flutter.plugins organization.

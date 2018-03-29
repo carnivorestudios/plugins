@@ -1,3 +1,16 @@
+## 0.4.0
+
+* **Breaking change**. The `source` parameter for the `pickImage` is now required. Also, the `ImageSource.any` option doesn't exist anymore.
+* Use the native Android image gallery for picking images instead of a custom UI. 
+
+## 0.3.1
+
+* Bugfix: Android version correctly asks for runtime camera permission when using `ImageSource.camera`. 
+
+## 0.3.0
+
+* **Breaking change**. Set SDK constraints to match the Flutter beta release.
+
 ## 0.2.1
 
 * Simplified and upgraded Android project template to Android SDK 27.

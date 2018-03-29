@@ -36,8 +36,12 @@ void main() {
           case "startListeningAuthState":
             return mockHandleId++;
             break;
+          case "sendPasswordResetEmail":
           case "updateProfile":
             return null;
+            break;
+          case "fetchProvidersForEmail":
+            return new List<String>(0);
             break;
           default:
             return mockFirebaseUser();
@@ -105,6 +109,22 @@ void main() {
               'email': kMockEmail,
               'password': kMockPassword,
             },
+          ),
+        ],
+      );
+    });
+
+    test('fetchProvidersForEmail', () async {
+      final List<String> providers =
+          await auth.fetchProvidersForEmail(email: kMockEmail);
+      expect(providers, isNotNull);
+      expect(providers.length, 0);
+      expect(
+        log,
+        <Matcher>[
+          isMethodCall(
+            'fetchProvidersForEmail',
+            arguments: <String, String>{'email': kMockEmail},
           ),
         ],
       );
@@ -202,6 +222,23 @@ void main() {
             arguments: <String, String>{
               'email': kMockEmail,
               'password': kMockPassword,
+            },
+          ),
+        ],
+      );
+    });
+
+    test('sendPasswordResetEmail', () async {
+      await auth.sendPasswordResetEmail(
+        email: kMockEmail,
+      );
+      expect(
+        log,
+        <Matcher>[
+          isMethodCall(
+            'sendPasswordResetEmail',
+            arguments: <String, String>{
+              'email': kMockEmail,
             },
           ),
         ],

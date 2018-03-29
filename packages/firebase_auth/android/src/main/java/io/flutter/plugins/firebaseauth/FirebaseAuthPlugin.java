@@ -19,6 +19,7 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
+import java.util.List;
 import java.util.Map;
 
 /** Flutter plugin for Firebase Auth. */
@@ -58,6 +59,12 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
         break;
       case "createUserWithEmailAndPassword":
         handleCreateUserWithEmailAndPassword(call, result);
+        break;
+      case "fetchProvidersForEmail":
+        handleFetchProvidersForEmail(call, result);
+        break;
+      case "sendPasswordResetEmail":
+        handleSendPasswordResetEmail(call, result);
         break;
       case "signInWithEmailAndPassword":
         handleSignInWithEmailAndPassword(call, result);
@@ -156,6 +163,26 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
     firebaseAuth
         .createUserWithEmailAndPassword(email, password)
         .addOnCompleteListener(new SignInCompleteListener(result));
+  }
+
+  private void handleFetchProvidersForEmail(MethodCall call, final Result result) {
+    @SuppressWarnings("unchecked")
+    Map<String, String> arguments = (Map<String, String>) call.arguments;
+    String email = arguments.get("email");
+
+    firebaseAuth
+        .fetchProvidersForEmail(email)
+        .addOnCompleteListener(new ProvidersCompleteListener(result));
+  }
+
+  private void handleSendPasswordResetEmail(MethodCall call, final Result result) {
+    @SuppressWarnings("unchecked")
+    Map<String, String> arguments = (Map<String, String>) call.arguments;
+    String email = arguments.get("email");
+
+    firebaseAuth
+        .sendPasswordResetEmail(email)
+        .addOnCompleteListener(new TaskVoidCompleteListener(result));
   }
 
   private void handleSignInWithEmailAndPassword(MethodCall call, final Result result) {
@@ -406,6 +433,43 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
         FirebaseUser user = task.getResult().getUser();
         ImmutableMap<String, Object> userMap = mapFromUser(user);
         result.success(userMap);
+      }
+    }
+  }
+
+  private class TaskVoidCompleteListener implements OnCompleteListener<Void> {
+    private final Result result;
+
+    TaskVoidCompleteListener(Result result) {
+      this.result = result;
+    }
+
+    @Override
+    public void onComplete(@NonNull Task<Void> task) {
+      if (!task.isSuccessful()) {
+        Exception e = task.getException();
+        result.error(ERROR_REASON_EXCEPTION, e.getMessage(), null);
+      } else {
+        result.success(null);
+      }
+    }
+  }
+
+  private class ProvidersCompleteListener implements OnCompleteListener<ProviderQueryResult> {
+    private final Result result;
+
+    ProvidersCompleteListener(Result result) {
+      this.result = result;
+    }
+
+    @Override
+    public void onComplete(@NonNull Task<ProviderQueryResult> task) {
+      if (!task.isSuccessful()) {
+        Exception e = task.getException();
+        result.error(ERROR_REASON_EXCEPTION, e.getMessage(), null);
+      } else {
+        List<String> providers = task.getResult().getProviders();
+        result.success(providers);
       }
     }
   }

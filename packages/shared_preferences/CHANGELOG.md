@@ -1,3 +1,15 @@
+## 0.4.0
+
+* **Breaking change**. Set SDK constraints to match the Flutter beta release.
+
+## 0.3.3
+
+* Fixed Dart 2 issues.
+
+## 0.3.2
+
+* Added an getter that can retrieve values of any type
+
 ## 0.3.1
 
 * Simplified and upgraded Android project template to Android SDK 27.
