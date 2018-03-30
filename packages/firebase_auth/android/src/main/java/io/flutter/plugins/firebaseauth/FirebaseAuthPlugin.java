@@ -90,9 +90,6 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
       case "sendEmailVerification":
         handleSendEmailVerification(call, result);
         break;
-      case "sendPasswordResetEmail":
-        handleSendPasswordResetEmail(call, result);
-        break;
       case "updatePassword":
         handleUpdatePassword(call, result);
         break;
@@ -184,7 +181,7 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
         .sendPasswordResetEmail(email)
         .addOnCompleteListener(new TaskVoidCompleteListener(result));
   }
-
+  
   private void handleSignInWithEmailAndPassword(MethodCall call, final Result result) {
     @SuppressWarnings("unchecked")
     Map<String, String> arguments = (Map<String, String>) call.arguments;
@@ -266,26 +263,6 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
     firebaseAuth
         .getCurrentUser()
         .sendEmailVerification()
-        .addOnCompleteListener(
-            new OnCompleteListener<Void>() {
-              @Override
-              public void onComplete(@NonNull Task<Void> task) {
-                if (task.isSuccessful()) {
-                  result.success(null);
-                } else {
-                  result.error(ERROR_REASON_EXCEPTION, task.getException().getMessage(), null);
-                }
-              }
-            }
-        );
-  }
-
-  private void handleSendPasswordResetEmail(MethodCall call, final Result result) {
-    @SuppressWarnings("unchecked")
-    Map<String, String> arguments = (Map<String, String>) call.arguments;
-    String email = arguments.get("email");
-    firebaseAuth
-        .sendPasswordResetEmail(email)
         .addOnCompleteListener(
             new OnCompleteListener<Void>() {
               @Override
