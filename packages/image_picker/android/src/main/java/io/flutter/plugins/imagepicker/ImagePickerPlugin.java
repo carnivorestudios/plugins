@@ -40,7 +40,7 @@ import io.flutter.plugin.common.PluginRegistry.ActivityResultListener;
  */
 public class ImagePickerPlugin implements MethodCallHandler, ActivityResultListener {
     private static String TAG = "ImagePicker";
-    private static final String CHANNEL = "image_picker";
+    private static final String CHANNEL = "plugins.flutter.io/image_picker";
 
     public static final int REQUEST_CODE_PICK = 2342;
     public static final int REQUEST_CODE_CAMERA = 2343;

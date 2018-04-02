@@ -36,7 +36,7 @@ enum ImageSource {
 }
 
 class ImagePicker {
-  static const MethodChannel _channel = const MethodChannel('image_picker');
+  static const MethodChannel _channel = const MethodChannel('plugins.flutter.io/image_picker');
 
   /// Returns a [File] object pointing to the image that was picked.
   ///
@@ -72,7 +72,7 @@ class ImagePicker {
       throw new ArgumentError.value(maxHeight, 'maxHeight can\'t be negative');
     }
 
-    final List<Map<String, String>> paths = await _channel.invokeMethod(
+    List<dynamic> results = await _channel.invokeMethod(
       'pickImage',
       <String, dynamic>{
         'source': source.index,
@@ -85,13 +85,14 @@ class ImagePicker {
       },
     );
 
-    return paths.map((Map<String, String> p) {
-      final ImageResult ir = new ImageResult(p["path"]);
-      if (p.containsKey("width")) {
-        ir.width = int.parse(p["width"]);
+    return results.map((dynamic result) {
+      final Map<dynamic, dynamic> resultMap = result;
+      final ImageResult ir = new ImageResult(resultMap["path"] as String);
+      if (resultMap.containsKey("width")) {
+        ir.width = int.parse(resultMap["width"] as String);
       }
-      if (p.containsKey("height")) {
-        ir.height = int.parse(p["height"]);
+      if (resultMap.containsKey("height")) {
+        ir.height = int.parse(resultMap["height"] as String);
       }
       return ir;
     }).toList();
