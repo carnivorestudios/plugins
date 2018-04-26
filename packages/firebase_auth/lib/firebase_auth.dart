@@ -78,8 +78,8 @@ class FirebaseUser extends UserInfo {
     });
   }
 
-  Future<Null> reload() {
-    return FirebaseAuth.channel.invokeMethod('userReload') as Future<Null>;
+  Future<dynamic> reload() {
+    return FirebaseAuth.channel.invokeMethod('userReload');
   }
 
   @override
