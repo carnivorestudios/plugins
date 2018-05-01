@@ -4,125 +4,125 @@
 
 part of firebase_storage;
 
-/// FirebaseStorage is a service that supports uploading and downloading large
-/// objects to Google Cloud Storage.
 class FirebaseStorage {
-  static const MethodChannel channel =
+  static const MethodChannel _channel =
       const MethodChannel('plugins.flutter.io/firebase_storage');
 
-  /// Returns the [FirebaseStorage] instance, initialized with a custom
-  /// [FirebaseApp] if [app] is specified and a custom Google Cloud Storage
-  /// bucket if [storageBucket] is specified. Otherwise the instance will be
-  /// initialized with the default [FirebaseApp].
-  ///
-  /// The [FirebaseStorage] instance is a singleton for fixed [app] and
-  /// [storageBucket].
-  ///
-  /// The [storageBucket] argument is the gs:// url to the custom Firebase
-  /// Storage Bucket.
-  ///
-  /// The [app] argument is the custom [FirebaseApp].
-  FirebaseStorage({this.app, this.storageBucket});
+  static bool _initialized = false;
 
-  static FirebaseStorage _instance = new FirebaseStorage();
+  // TODO: change "const FirebaseApp()" to "FirebaseApp.instance" after firebase_core is updated to latest version
+  FirebaseStorage({FirebaseApp app, this.bucketURL})
+      : this.app = app ?? const FirebaseApp() {
+    if (_initialized) return;
+    _channel.setMethodCallHandler((MethodCall call) {
+      _methodStreamController.add(call);
+    });
+    _initialized = true;
+  }
+
+  /// Used to dispatch method calls
+  final StreamController<MethodCall> _methodStreamController =
+      new StreamController.broadcast(); // ignore: close_sinks
+  Stream<MethodCall> get _methodStream => _methodStreamController.stream;
+
+  /// Gets the instance of FirebaseStorage for the default Firebase app.
+  static final FirebaseStorage instance = new FirebaseStorage();
 
   /// The [FirebaseApp] instance to which this [FirebaseStorage] belongs.
   ///
   /// If null, the default [FirebaseApp] is used.
   final FirebaseApp app;
 
-  /// The Google Cloud Storage bucket to which this [FirebaseStorage] belongs.
+  /// The URL to which this [FirebaseStorage] belongs
   ///
-  /// If null, the storage bucket of the specified [FirebaseApp] is used.
-  final String storageBucket;
+  /// If null, the URL of the specified [FirebaseApp] is used
+  final String bucketURL;
 
-  /// Returns the [FirebaseStorage] instance, initialized with the default
-  /// [FirebaseApp].
-  static FirebaseStorage get instance => _instance;
+  @override
+  bool operator ==(dynamic o) => o is FirebaseStorage && o.app == app;
 
-  /// Creates a new [StorageReference] initialized at the root
-  /// Firebase Storage location.
-  StorageReference ref() => new StorageReference._(const <String>[], this);
+  @override
+  int get hashCode => app.hashCode;
 
-  Future<int> getMaxDownloadRetryTimeMillis() async {
-    return await channel.invokeMethod(
-        "FirebaseStorage#getMaxDownloadRetryTime", <String, dynamic>{
-      'app': app?.name,
-      'bucket': storageBucket,
-    });
-  }
-
-  Future<int> getMaxUploadRetryTimeMillis() async {
-    return await channel.invokeMethod(
-        "FirebaseStorage#getMaxUploadRetryTime", <String, dynamic>{
-      'app': app?.name,
-      'bucket': storageBucket,
-    });
-  }
-
-  Future<int> getMaxOperationRetryTimeMillis() async {
-    return await channel.invokeMethod(
-        "FirebaseStorage#getMaxOperationRetryTime", <String, dynamic>{
-      'app': app?.name,
-      'bucket': storageBucket,
-    });
-  }
-
-  Future<void> setMaxDownloadRetryTimeMillis(int time) {
-    return channel.invokeMethod(
-        "FirebaseStorage#setMaxDownloadRetryTime", <String, dynamic>{
-      'app': app?.name,
-      'bucket': storageBucket,
-      'time': time,
-    });
-  }
-
-  Future<void> setMaxUploadRetryTimeMillis(int time) {
-    return channel.invokeMethod(
-        "FirebaseStorage#setMaxUploadRetryTime", <String, dynamic>{
-      'app': app?.name,
-      'bucket': storageBucket,
-      'time': time,
-    });
-  }
-
-  Future<void> setMaxOperationRetryTimeMillis(int time) {
-    return channel.invokeMethod(
-        "FirebaseStorage#setMaxOperationRetryTime", <String, dynamic>{
-      'app': app?.name,
-      'bucket': storageBucket,
-      'time': time,
-    });
-  }
+  /// Gets a DatabaseReference for the root of your Firebase Database.
+  StorageReference reference() => new StorageReference._(this, <String>[]);
 }
 
-class StorageFileDownloadTask {
-  final FirebaseStorage _firebaseStorage;
-  final String _path;
-  final File _file;
+/// Metadata for a [StorageReference]. Metadata stores default attributes such as
+/// size and content type.
+class StorageMetadata {
+  const StorageMetadata({
+    this.cacheControl,
+    this.contentDisposition,
+    this.contentEncoding,
+    this.contentLanguage,
+    this.contentType,
+  })  : bucket = null,
+        generation = null,
+        metadataGeneration = null,
+        path = null,
+        name = null,
+        sizeBytes = null,
+        creationTimeMillis = null,
+        updatedTimeMillis = null,
+        md5Hash = null;
 
-  StorageFileDownloadTask._(this._firebaseStorage, this._path, this._file);
+  StorageMetadata._fromMap(Map<dynamic, dynamic> map)
+      : bucket = map['bucket'],
+        generation = map['generation'],
+        metadataGeneration = map['metadataGeneration'],
+        path = map['path'],
+        name = map['name'],
+        sizeBytes = map['sizeBytes'],
+        creationTimeMillis = map['creationTimeMillis'],
+        updatedTimeMillis = map['updatedTimeMillis'],
+        md5Hash = map['md5Hash'],
+        cacheControl = map['cacheControl'],
+        contentDisposition = map['contentDisposition'],
+        contentLanguage = map['contentLanguage'],
+        contentType = map['contentType'],
+        contentEncoding = map['contentEncoding'];
 
-  Future<void> _start() async {
-    final int totalByteCount = await FirebaseStorage.channel.invokeMethod(
-      "StorageReference#writeToFile",
-      <String, dynamic>{
-        'app': _firebaseStorage.app?.name,
-        'bucket': _firebaseStorage.storageBucket,
-        'filePath': _file.absolute.path,
-        'path': _path,
-      },
-    );
-    _completer
-        .complete(new FileDownloadTaskSnapshot(totalByteCount: totalByteCount));
-  }
+  /// The owning Google Cloud Storage bucket for the [StorageReference].
+  final String bucket;
 
-  Completer<FileDownloadTaskSnapshot> _completer =
-      new Completer<FileDownloadTaskSnapshot>();
-  Future<FileDownloadTaskSnapshot> get future => _completer.future;
-}
+  /// A version String indicating what version of the [StorageReference].
+  final String generation;
 
-class FileDownloadTaskSnapshot {
-  FileDownloadTaskSnapshot({this.totalByteCount});
-  final int totalByteCount;
+  /// A version String indicating the version of this [StorageMetadata].
+  final String metadataGeneration;
+
+  /// The path of the [StorageReference] object.
+  final String path;
+
+  /// A simple name of the [StorageReference] object.
+  final String name;
+
+  /// The stored Size in bytes of the [StorageReference] object.
+  final int sizeBytes;
+
+  /// The time the [StorageReference] was created in milliseconds since the epoch.
+  final int creationTimeMillis;
+
+  /// The time the [StorageReference] was last updated in milliseconds since the epoch.
+  final int updatedTimeMillis;
+
+  /// The MD5Hash of the [StorageReference] object.
+  final String md5Hash;
+
+  /// The Cache Control setting of the [StorageReference].
+  final String cacheControl;
+
+  /// The content disposition of the [StorageReference].
+  final String contentDisposition;
+
+  /// The content encoding for the [StorageReference].
+  final String contentEncoding;
+
+  /// The content language for the StorageReference, specified as a 2-letter
+  /// lowercase language code defined by ISO 639-1.
+  final String contentLanguage;
+
+  /// The content type (MIME type) of the [StorageReference].
+  final String contentType;
 }

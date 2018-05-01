@@ -1,82 +1,169 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2017, the Flutter project authors.  Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 
 part of firebase_storage;
 
-abstract class StorageUploadTask {
-  final FirebaseStorage _firebaseStorage;
-  final String _path;
+/// Represents a UploadTask
+/// This class should manage all state of the upload task from platform side
+abstract class UploadTask {
+  UploadTask({
+    @required FirebaseStorage storage,
+    @required StorageReference reference,
+    StorageMetadata metadata,
+  })  : _storage = storage,
+        _reference = reference,
+        _metadata = metadata,
+        assert(storage != null);
+
+  final FirebaseStorage _storage;
   final StorageMetadata _metadata;
+  final StorageReference _reference;
 
-  StorageUploadTask._(this._firebaseStorage, this._path, this._metadata);
-  Future<void> _start();
+  Future<dynamic> _platformMethod();
 
-  Completer<UploadTaskSnapshot> _completer =
-      new Completer<UploadTaskSnapshot>();
-  Future<UploadTaskSnapshot> get future => _completer.future;
+  bool isCanceled = false;
+  bool isComplete = false;
+  bool isInProgress = false;
+  bool isPaused = false;
+  bool isSuccessful = false;
+
+  Completer<StorageTaskSnapshot> _completer =
+      new Completer<StorageTaskSnapshot>();
+  Future<StorageTaskSnapshot> get onComplete => _completer.future;
+
+  /// Returns a StorageTaskSnapshot on complete, or throws error
+  Future<StorageTaskSnapshot> _start({
+    void onSuccess(StorageTaskSnapshot s),
+    void onFailure(StorageTaskSnapshot s),
+    void onProgress(StorageTaskSnapshot s),
+    void onPause(StorageTaskSnapshot s),
+    void onResume(StorageTaskSnapshot s),
+  }) async {
+    final int handle =
+        await _platformMethod().then<int>((dynamic result) => result);
+    return await _storage._methodStream
+        .where((MethodCall m) => m.method == 'StorageTaskEvent')
+        .where((MethodCall m) => m.arguments['handle'] == handle)
+        .map((m) {
+          print(m.method);
+          print(m.arguments);
+          return m;
+        })
+        .map<Map<dynamic, dynamic>>((m) => m.arguments)
+        .map<StorageTaskEvent>(
+            (m) => new StorageTaskEvent._(m['type'], m['snapshot']))
+        .map<StorageTaskEvent>((e) {
+          _resetState();
+          Function callback;
+          switch (e.type) {
+            case StorageTaskEventType.progress:
+              print('ON PROGRESS');
+              callback = onProgress;
+              isInProgress = true;
+              break;
+            case StorageTaskEventType.resume:
+              print('ON RESUME');
+              callback = onResume;
+              isInProgress = true;
+              break;
+            case StorageTaskEventType.pause:
+              print('ON PAUSE');
+              callback = onPause;
+              isPaused = true;
+              break;
+            case StorageTaskEventType.success:
+              print('ON SUCCESS');
+              callback = onSuccess;
+              isSuccessful = true;
+              isComplete = true;
+              _completer.complete(e.snapshot);
+              break;
+            case StorageTaskEventType.failure:
+              print('ON FAILURE');
+              callback = onFailure;
+              isComplete = true;
+              final error = Exception(
+                  'FirebaseStorage file failed to upload: ${e.snapshot.error}');
+              _completer.completeError(error);
+              throw error;
+              break;
+          }
+          if (callback != null) {
+            callback(e.snapshot);
+          }
+          return e;
+        })
+        .firstWhere((e) => e.type == StorageTaskEventType.success)
+        .then<StorageTaskSnapshot>((event) => event.snapshot);
+  }
+
+  void _resetState() {
+    isCanceled = false;
+    isComplete = false;
+    isInProgress = false;
+    isPaused = false;
+    isSuccessful = false;
+  }
+
+  /// Pause the upload
+  bool pause() {}
+
+  /// Resume the upload
+  bool resume() {}
+
+  /// Cancel the upload
+  bool cancel() {}
 }
 
-class StorageFileUploadTask extends StorageUploadTask {
-  final File _file;
-  StorageFileUploadTask._(this._file, FirebaseStorage firebaseStorage,
-      String path, StorageMetadata metadata)
-      : super._(firebaseStorage, path, metadata);
+class FileUploadTask extends UploadTask {
+  FileUploadTask({
+    @required FirebaseStorage storage,
+    @required StorageReference reference,
+    StorageMetadata metadata,
+    @required this.file,
+  }) : super(storage: storage, reference: reference, metadata: metadata);
+
+  final File file;
 
   @override
-  Future<void> _start() async {
-    final String downloadUrl = await FirebaseStorage.channel.invokeMethod(
+  Future<dynamic> _platformMethod() {
+    return FirebaseStorage._channel.invokeMethod(
       'StorageReference#putFile',
       <String, dynamic>{
-        'app': _firebaseStorage.app?.name,
-        'bucket': _firebaseStorage.storageBucket,
-        'filename': _file.absolute.path,
-        'path': _path,
+        'app': _storage.app?.name,
+        'databaseURL': _storage.bucketURL,
+        'filename': file.absolute.path,
+        'path': _reference.path,
         'metadata':
             _metadata == null ? null : _buildMetadataUploadMap(_metadata),
       },
     );
-    _completer
-        .complete(new UploadTaskSnapshot(downloadUrl: Uri.parse(downloadUrl)));
   }
 }
 
-class StorageDataUploadTask extends StorageUploadTask {
-  final Uint8List _bytes;
-  StorageDataUploadTask._(this._bytes, FirebaseStorage firebaseStorage,
-      String path, StorageMetadata metadata)
-      : super._(firebaseStorage, path, metadata);
+class DataUploadTask extends UploadTask {
+  DataUploadTask({
+    @required FirebaseStorage storage,
+    @required StorageReference reference,
+    StorageMetadata metadata,
+    @required this.data,
+  }) : super(storage: storage, reference: reference, metadata: metadata);
+
+  final Uint8List data;
 
   @override
-  Future<void> _start() async {
-    final String downloadUrl = await FirebaseStorage.channel.invokeMethod(
-      'StorageReference#putData',
+  Future<dynamic> _platformMethod() {
+    return FirebaseStorage._channel.invokeMethod(
+      'StorageReference#putFile',
       <String, dynamic>{
-        'app': _firebaseStorage.app?.name,
-        'bucket': _firebaseStorage.storageBucket,
-        'data': _bytes,
-        'path': _path,
+        'app': _storage.app?.name,
+        'databaseURL': _storage.bucketURL,
+        'data': data,
+        'path': _reference.path,
         'metadata':
             _metadata == null ? null : _buildMetadataUploadMap(_metadata),
       },
     );
-    _completer
-        .complete(new UploadTaskSnapshot(downloadUrl: Uri.parse(downloadUrl)));
   }
-}
-
-Map<String, dynamic> _buildMetadataUploadMap(StorageMetadata metadata) {
-  return <String, dynamic>{
-    'cacheControl': metadata.cacheControl,
-    'contentDisposition': metadata.contentDisposition,
-    'contentLanguage': metadata.contentLanguage,
-    'contentType': metadata.contentType,
-    'contentEncoding': metadata.contentEncoding,
-    'customMetadata': metadata.customMetadata,
-  };
-}
-
-class UploadTaskSnapshot {
-  UploadTaskSnapshot({this.downloadUrl});
-  final Uri downloadUrl;
 }

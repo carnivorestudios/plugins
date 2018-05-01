@@ -6,45 +6,25 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-void main() async {
-  final FirebaseApp app = await FirebaseApp.configure(
-    name: 'test',
-    options: new FirebaseOptions(
-      googleAppID: Platform.isIOS
-          ? '1:159623150305:ios:4a213ef3dbd8997b'
-          : '1:159623150305:android:ef48439a0cc0263d',
-      gcmSenderID: '159623150305',
-      apiKey: 'AIzaSyChk3KEG7QYrs4kQPLP1tjJNxBTbfCAdgg',
-      projectID: 'flutter-firebase-plugins',
-    ),
-  );
-  final FirebaseStorage storage = new FirebaseStorage(
-      app: app, storageBucket: 'gs://flutter-firebase-plugins.appspot.com');
-  runApp(new MyApp(storage: storage));
+void main() {
+  runApp(new MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  MyApp({this.storage});
-  final FirebaseStorage storage;
-
   @override
   Widget build(BuildContext context) {
     return new MaterialApp(
       title: 'Flutter Storage Example',
-      home: new MyHomePage(storage: storage),
+      home: new MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({this.storage});
-  final FirebaseStorage storage;
-
   @override
   _MyHomePageState createState() => new _MyHomePageState();
 }
@@ -56,7 +36,6 @@ class _MyHomePageState extends State<MyHomePage> {
   String _name;
   String _bucket;
   String _path;
-  String _tempFileContents;
 
   Future<Null> _uploadFile() async {
     final Directory systemTempDir = Directory.systemTemp;
@@ -64,39 +43,30 @@ class _MyHomePageState extends State<MyHomePage> {
     file.writeAsString(kTestString);
     assert(await file.readAsString() == kTestString);
     final String rand = "${new Random().nextInt(10000)}";
-    final StorageReference ref =
-        widget.storage.ref().child('text').child('foo$rand.txt');
-    final StorageUploadTask uploadTask = ref.putFile(
-      file,
-      new StorageMetadata(
-        contentLanguage: 'en',
-        customMetadata: <String, String>{'activity': 'test'},
-      ),
-    );
+    final StorageReference ref = FirebaseStorage.instance
+        .reference()
+        .child('text')
+        .child("foo$rand.txt");
+    final UploadTask uploadTask = ref
+        .putFile(file, metadata: const StorageMetadata(contentLanguage: "en"),
+            onProgress: (StorageTaskSnapshot s) {
+      // do something with progress
+    });
+    /*uploadTask.snapshots.listen((StorageTaskEvent e) {
+      // this would be ideal, might not be easily obtained
+    });*/
 
-    final Uri downloadUrl = (await uploadTask.future).downloadUrl;
+    //final Uri downloadUrl = (await uploadTask.future).downloadUrl;
     final http.Response downloadData = await http.get(downloadUrl);
     final String name = await ref.getName();
     final String bucket = await ref.getBucket();
     final String path = await ref.getPath();
-    final File tempFile = new File('${systemTempDir.path}/tmp.txt');
-    if (tempFile.existsSync()) {
-      await tempFile.delete();
-    }
-    await tempFile.create();
-    assert(await tempFile.readAsString() == "");
-    final StorageFileDownloadTask task = ref.writeToFile(tempFile);
-    final int byteCount = (await task.future).totalByteCount;
-    final String tempFileContents = await tempFile.readAsString();
-    assert(tempFileContents == kTestString);
-    assert(byteCount == kTestString.length);
 
     setState(() {
       _fileContents = downloadData.body;
       _name = name;
       _path = path;
       _bucket = bucket;
-      _tempFileContents = tempFileContents;
     });
   }
 
@@ -111,12 +81,10 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             _fileContents == null
-                ? const Text('Press the button to upload a file \n '
-                    'and download its contents to tmp.txt')
+                ? const Text('Press the button to upload a file')
                 : new Text(
                     'Success!\n Uploaded $_name \n to bucket: $_bucket\n '
-                        'at path: $_path \n\nFile contents: "$_fileContents" \n'
-                        'Wrote "$_tempFileContents" to tmp.txt',
+                        'at path: $_path \n\nFile contents: "$_fileContents"',
                     style: const TextStyle(
                         color: const Color.fromARGB(255, 0, 155, 0)),
                   )
