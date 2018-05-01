@@ -22,6 +22,8 @@ abstract class UploadTask {
 
   Future<dynamic> _platformMethod();
 
+  int _handle;
+
   bool isCanceled = false;
   bool isComplete = false;
   bool isInProgress = false;
@@ -32,6 +34,10 @@ abstract class UploadTask {
       new Completer<StorageTaskSnapshot>();
   Future<StorageTaskSnapshot> get onComplete => _completer.future;
 
+  StreamController<StorageTaskSnapshot> _snapshotController =
+      new StreamController<StorageTaskSnapshot>();
+  Stream<StorageTaskSnapshot> get progress => _snapshotController.stream;
+
   /// Returns a StorageTaskSnapshot on complete, or throws error
   Future<StorageTaskSnapshot> _start({
     void onSuccess(StorageTaskSnapshot s),
@@ -40,11 +46,10 @@ abstract class UploadTask {
     void onPause(StorageTaskSnapshot s),
     void onResume(StorageTaskSnapshot s),
   }) async {
-    final int handle =
-        await _platformMethod().then<int>((dynamic result) => result);
+    _handle = await _platformMethod().then<int>((dynamic result) => result);
     return await _storage._methodStream
         .where((MethodCall m) => m.method == 'StorageTaskEvent')
-        .where((MethodCall m) => m.arguments['handle'] == handle)
+        .where((MethodCall m) => m.arguments['handle'] == _handle)
         .map((m) {
           print(m.method);
           print(m.arguments);
@@ -107,13 +112,16 @@ abstract class UploadTask {
   }
 
   /// Pause the upload
-  bool pause() {}
+  void pause() => FirebaseStorage._channel
+      .invokeMethod('UploadTask#pause', <String, dynamic>{'handle': _handle});
 
   /// Resume the upload
-  bool resume() {}
+  void resume() => FirebaseStorage._channel
+      .invokeMethod('UploadTask#resume', <String, dynamic>{'handle': _handle});
 
   /// Cancel the upload
-  bool cancel() {}
+  void cancel() => FirebaseStorage._channel
+      .invokeMethod('UploadTask#cancel', <String, dynamic>{'handle': _handle});
 }
 
 class FileUploadTask extends UploadTask {

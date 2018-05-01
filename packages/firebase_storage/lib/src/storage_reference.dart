@@ -52,7 +52,7 @@ class StorageReference {
   UploadTask putFile(
     File file, {
     StorageMetadata metadata,
-    ValueChanged onSuccess(StorageTaskSnapshot s),
+    void onSuccess(StorageTaskSnapshot s),
     void onFailure(StorageTaskSnapshot s),
     void onProgress(StorageTaskSnapshot s),
     void onPause(StorageTaskSnapshot s),
