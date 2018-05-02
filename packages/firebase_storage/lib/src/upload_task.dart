@@ -34,9 +34,9 @@ abstract class UploadTask {
       new Completer<StorageTaskSnapshot>();
   Future<StorageTaskSnapshot> get onComplete => _completer.future;
 
-  StreamController<StorageTaskSnapshot> _snapshotController =
-      new StreamController<StorageTaskSnapshot>();
-  Stream<StorageTaskSnapshot> get progress => _snapshotController.stream;
+  StreamController<StorageTaskEvent> _controller =
+      new StreamController<StorageTaskEvent>();
+  Stream<StorageTaskEvent> get events => _controller.stream;
 
   /// Returns a StorageTaskSnapshot on complete, or throws error
   Future<StorageTaskSnapshot> _start({
@@ -88,18 +88,24 @@ abstract class UploadTask {
               print('ON FAILURE');
               callback = onFailure;
               isComplete = true;
+              if (e.snapshot.error == StorageError.canceled) {
+                print('IMAGE WAS CANCELED');
+                isCanceled = true;
+              }
               final error = Exception(
                   'FirebaseStorage file failed to upload: ${e.snapshot.error}');
               _completer.completeError(error);
-              throw error;
               break;
           }
           if (callback != null) {
             callback(e.snapshot);
           }
+          _controller.add(e);
           return e;
         })
-        .firstWhere((e) => e.type == StorageTaskEventType.success)
+        .firstWhere((e) =>
+            e.type == StorageTaskEventType.success ||
+            e.type == StorageTaskEventType.failure)
         .then<StorageTaskSnapshot>((event) => event.snapshot);
   }
 

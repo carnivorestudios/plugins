@@ -16,17 +16,20 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.OnPausedListener;
 import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageException;
 import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 /** FirebaseStoragePlugin */
 public class FirebaseStoragePlugin implements MethodCallHandler {
@@ -273,7 +276,8 @@ public class FirebaseStoragePlugin implements MethodCallHandler {
         new OnFailureListener() {
           @Override
           public void onFailure(@NonNull Exception e) {
-            invokeStorageTaskEvent(handle, StorageTaskEventType.failure, task.getSnapshot(), e);
+            StorageException error = (StorageException) e;
+            invokeStorageTaskEvent(handle, StorageTaskEventType.failure, task.getSnapshot(), error);
           }
         });
     uploadTasks.put(handle, task);
@@ -288,14 +292,14 @@ public class FirebaseStoragePlugin implements MethodCallHandler {
     failure
   }
 
-  private void invokeStorageTaskEvent(int handle, StorageTaskEventType type, UploadTask.TaskSnapshot snapshot, Exception error) {
+  private void invokeStorageTaskEvent(int handle, StorageTaskEventType type, UploadTask.TaskSnapshot snapshot, StorageException error) {
     channel.invokeMethod(
         "StorageTaskEvent",
         buildMapFromTaskEvent(handle, type, snapshot, error)
     );
   }
 
-  private Map<String, Object> buildMapFromTaskEvent(int handle, StorageTaskEventType type, UploadTask.TaskSnapshot snapshot, Exception error) {
+  private Map<String, Object> buildMapFromTaskEvent(int handle, StorageTaskEventType type, UploadTask.TaskSnapshot snapshot, StorageException error) {
     Map<String, Object> map = new HashMap<>();
     map.put("handle", handle);
     map.put("type", type.ordinal());
@@ -303,7 +307,7 @@ public class FirebaseStoragePlugin implements MethodCallHandler {
     return map;
   }
 
-  private Map<String, Object> buildMapFromTaskSnapshot(UploadTask.TaskSnapshot snapshot, Exception error) {
+  private Map<String, Object> buildMapFromTaskSnapshot(UploadTask.TaskSnapshot snapshot, StorageException error) {
     Map<String, Object> map = new HashMap<>();
     if(snapshot.getDownloadUrl() != null) {
       map.put("downloadUrl", snapshot.getDownloadUrl().toString());
@@ -314,7 +318,7 @@ public class FirebaseStoragePlugin implements MethodCallHandler {
       map.put("uploadSessionUri", snapshot.getUploadSessionUri().toString());
     }
     if(error != null) {
-      map.put("error", error.getMessage());
+      map.put("error", error.getErrorCode());
     }
     if(snapshot.getMetadata() != null) {
       map.put("storageMetadata", buildMapFromMetadata(snapshot.getMetadata()));

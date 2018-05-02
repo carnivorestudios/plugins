@@ -33,7 +33,7 @@ class StorageTaskSnapshot {
             : null;
 
   final Uri downloadUrl;
-  final String error;
+  final int error;
   final int bytesTransferred;
   final int totalByteCount;
   final Uri uploadSessionUri;
