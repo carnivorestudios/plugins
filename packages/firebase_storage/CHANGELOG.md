@@ -1,3 +1,9 @@
+## 0.3.5
+
+* **Breaking change**. Changed StorageUploadTask `future` to `downloadUrl`.
+* Added support for monitoring and managing uploads of StorageUploadTask
+* Split plugin files into library structure.
+
 ## 0.3.4
 
 * Added timeout properties to FirebaseStorage
