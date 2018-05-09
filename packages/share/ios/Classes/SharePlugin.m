@@ -34,7 +34,7 @@ static NSString *const PLATFORM_CHANNEL = @"plugins.flutter.io/share";
                                 [originWidth doubleValue], [originHeight doubleValue]);
       }
 
-      [self share:call.arguments
+      [self share:arguments[@"text"]
           withController:[UIApplication sharedApplication].keyWindow.rootViewController
                 atSource:originRect];
       result(nil);
