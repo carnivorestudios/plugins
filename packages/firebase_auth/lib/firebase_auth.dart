@@ -303,6 +303,16 @@ class FirebaseAuth {
     return currentUser;
   }
 
+  Future<Null> updatePassword(
+      @required String currentPassword, @required String newPassword) async {
+    assert(currentPassword != null);
+    assert(newPassword != null);
+    return await channel.invokeMethod("updatePassword", <String, String>{
+      "currentPassword": currentPassword,
+      "newPassword": newPassword
+    }) as Future<Null>;
+  }
+
   Future<void> updateProfile(UserUpdateInfo userUpdateInfo) async {
     assert(userUpdateInfo != null);
     return await channel.invokeMethod(

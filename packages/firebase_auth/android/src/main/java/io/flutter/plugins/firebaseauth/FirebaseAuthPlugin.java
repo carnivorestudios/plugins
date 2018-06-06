@@ -7,6 +7,7 @@ package io.flutter.plugins.firebaseauth;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.util.SparseArray;
+import android.util.Log;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.common.collect.ImmutableList;
@@ -95,6 +96,9 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
       case "linkWithEmailAndPassword":
         handleLinkWithEmailAndPassword(call, result);
         break;
+      case "updatePassword":
+        handleUpdatePassword(call, result);
+        break;
       case "linkWithGoogleCredential":
         handleLinkWithGoogleCredential(call, result);
         break;
@@ -134,10 +138,15 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
         new FirebaseAuth.AuthStateListener() {
           @Override
           public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-            firebaseAuth.removeAuthStateListener(this);
-            FirebaseUser user = firebaseAuth.getCurrentUser();
-            ImmutableMap<String, Object> userMap = mapFromUser(user);
-            result.success(userMap);
+            try {
+              firebaseAuth.removeAuthStateListener(this);
+              FirebaseUser user = firebaseAuth.getCurrentUser();
+              ImmutableMap<String, Object> userMap = mapFromUser(user);
+              result.success(userMap);
+            } catch (IllegalStateException e) {
+              // don't call result.error because exception means result has already been called
+              Log.d("FirebaseAuthPlugin", "Exception in handleCurrentUser", e);
+            }
           }
         };
 
@@ -288,6 +297,36 @@ public class FirebaseAuthPlugin implements MethodCallHandler {
                 }
               }
             });
+  }
+
+  private void handleUpdatePassword(MethodCall call, final Result result) {
+    @SuppressWarnings("unchecked")
+    Map<String, String> arguments = (Map<String, String>) call.arguments;
+    String currentPassword = arguments.get("currentPassword");
+    final String newPassword = arguments.get("newPassword");
+    final FirebaseUser user = firebaseAuth.getCurrentUser();
+    String email = user.getEmail();
+    AuthCredential credential = EmailAuthProvider.getCredential(email, currentPassword);
+    user.reauthenticate(credential).addOnCompleteListener(new OnCompleteListener<Void>() {
+      @Override
+      public void onComplete(@NonNull Task<Void> task) {
+        if (task.isSuccessful()) {
+          user.updatePassword(newPassword).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+              if (task.isSuccessful()) {
+                result.success(null);
+              }
+              else {
+                result.error(ERROR_REASON_EXCEPTION, task.getException().getMessage(), null);
+              }
+            }
+          });
+        } else {
+          result.error(ERROR_REASON_EXCEPTION, task.getException().getMessage(), null);
+        }
+      }
+    });
   }
 
   private void handleUpdateProfile(MethodCall call, final Result result) {

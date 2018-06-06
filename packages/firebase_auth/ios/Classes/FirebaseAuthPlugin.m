@@ -38,7 +38,17 @@ NSDictionary *toDictionary(id<FIRUserInfo> userInfo) {
 // Handles are ints used as indexes into the NSMutableDictionary of active observers
 int nextHandle = 0;
 
++ (void)signOutIfFirstLaunch {
+  static NSString *hasLaunchedKey = @"firebase_auth_plugin.hasLaunchedKey";
+  bool hasLaunched = [[NSUserDefaults standardUserDefaults] boolForKey:hasLaunchedKey];
+  if (!hasLaunched) {
+    [[FIRAuth auth] signOut:nil];
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:hasLaunchedKey];
+  }
+}
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
+  [FLTFirebaseAuthPlugin signOutIfFirstLaunch];
   FlutterMethodChannel *channel =
       [FlutterMethodChannel methodChannelWithName:@"plugins.flutter.io/firebase_auth"
                                   binaryMessenger:[registrar messenger]];
@@ -219,6 +229,27 @@ int nextHandle = 0;
                                                    identifier.intValue]
                 details:nil]);
     }
+  }  else if ([@"updatePassword" isEqualToString:call.method]) {
+      NSString *currentPassword = call.arguments[@"currentPassword"];
+      NSString *newPassword = call.arguments[@"newPassword"];
+      FIRUser *user = [FIRAuth auth].currentUser;
+      NSString *email = user.email;
+      FIRAuthCredential *credential =
+      [FIREmailPasswordAuthProvider credentialWithEmail:email password:currentPassword];
+      [user reauthenticateWithCredential:credential completion:^(NSError * _Nullable error) {
+          if (error) {
+              [self sendResult:result forUser:nil error:error];
+          }
+          else {
+              [user updatePassword:newPassword completion:^(NSError * _Nullable error) {
+                  if (error != nil) {
+                      [self sendResult:result forUser:nil error:error];
+                  } else {
+                      result(nil);
+                  }
+              }];
+          }
+      }];
   } else {
     result(FlutterMethodNotImplemented);
   }
