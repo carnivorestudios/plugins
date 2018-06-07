@@ -462,9 +462,6 @@ public class FirebaseStoragePlugin implements MethodCallHandler {
   private Map<String, Object> buildMapFromTaskSnapshot(
       UploadTask.TaskSnapshot snapshot, StorageException error) {
     Map<String, Object> map = new HashMap<>();
-    if (snapshot.getDownloadUrl() != null) {
-      map.put("downloadUrl", snapshot.getDownloadUrl().toString());
-    }
     map.put("bytesTransferred", snapshot.getBytesTransferred());
     map.put("totalByteCount", snapshot.getTotalByteCount());
     if (snapshot.getUploadSessionUri() != null) {

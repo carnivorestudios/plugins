@@ -37,8 +37,8 @@ abstract class StorageUploadTask {
   Future<StorageTaskSnapshot> get onComplete => _completer.future;
 
   /// Convenience method to get the downloadUrl when complete
-  Completer<Uri> _downloadUrl = new Completer<Uri>();
-  Future<Uri> get downloadUrl => _downloadUrl.future.then((Uri u) {
+  Completer<String> _downloadUrl = new Completer<String>();
+  Future<String> get downloadUrl => _downloadUrl.future.then((String u) {
         if (u == null) throw Exception('Failed to upload');
         return u;
       });
@@ -72,7 +72,9 @@ abstract class StorageUploadTask {
               isSuccessful = true;
               isComplete = true;
               _completer.complete(e.snapshot);
-              _downloadUrl.complete(e.snapshot.downloadUrl);
+              _reference.getDownloadURL().then((dynamic url) {
+                _downloadUrl.complete(url as String);
+              });
               break;
             case StorageTaskEventType.failure:
               isComplete = true;
@@ -80,7 +82,7 @@ abstract class StorageUploadTask {
                 isCanceled = true;
               }
               _completer.complete(e.snapshot);
-              _downloadUrl.complete(e.snapshot.downloadUrl);
+              _downloadUrl.complete(null);
               break;
           }
           lastSnapshot = e.snapshot;
