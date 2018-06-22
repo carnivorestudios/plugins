@@ -111,7 +111,11 @@ int nextHandle = 0;
       [self sendResult:result forUser:nil error:nil];
     }
   } else if ([@"getIdToken" isEqualToString:call.method]) {
-    BOOL forceRefresh = call.arguments[@"refresh"];
+    BOOL forceRefresh = false;
+    NSNumber *refresh = call.arguments[@"refresh"];
+    if (refresh != nil && refresh != NSNull) {
+        forceRefresh = refresh.boolValue;
+    }
     [[FIRAuth auth].currentUser
         getIDTokenForcingRefresh:forceRefresh
                       completion:^(NSString *_Nullable token, NSError *_Nullable error) {
