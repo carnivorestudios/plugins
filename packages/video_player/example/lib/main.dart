@@ -27,7 +27,7 @@ class VideoPlayPause extends StatefulWidget {
 
 class _VideoPlayPauseState extends State<VideoPlayPause> {
   FadeAnimation imageFadeAnim =
-      new FadeAnimation(child: const Icon(Icons.play_arrow, size: 100.0));
+      new FadeAnimation(child: new Icon(Icons.play_arrow, size: 100.0));
   VoidCallback listener;
 
   _VideoPlayPauseState() {
@@ -64,11 +64,11 @@ class _VideoPlayPauseState extends State<VideoPlayPause> {
           }
           if (controller.value.isPlaying) {
             imageFadeAnim =
-                new FadeAnimation(child: const Icon(Icons.pause, size: 100.0));
+                new FadeAnimation(child: new Icon(Icons.pause, size: 100.0));
             controller.pause();
           } else {
             imageFadeAnim = new FadeAnimation(
-                child: const Icon(Icons.play_arrow, size: 100.0));
+                child: new Icon(Icons.play_arrow, size: 100.0));
             controller.play();
           }
         },
@@ -151,44 +151,26 @@ class _FadeAnimationState extends State<FadeAnimation>
 typedef Widget VideoWidgetBuilder(
     BuildContext context, VideoPlayerController controller);
 
-abstract class PlayerLifeCycle extends StatefulWidget {
+/// A widget connecting its life cycle to a [VideoPlayerController].
+class PlayerLifeCycle extends StatefulWidget {
   final VideoWidgetBuilder childBuilder;
-  final String dataSource;
+  final String uri;
 
-  PlayerLifeCycle(this.dataSource, this.childBuilder);
-}
-
-/// A widget connecting its life cycle to a [VideoPlayerController] using
-/// a data source from the network.
-class NetworkPlayerLifeCycle extends PlayerLifeCycle {
-  NetworkPlayerLifeCycle(String dataSource, VideoWidgetBuilder childBuilder)
-      : super(dataSource, childBuilder);
+  PlayerLifeCycle(this.uri, this.childBuilder);
 
   @override
-  _NetworkPlayerLifeCycleState createState() =>
-      new _NetworkPlayerLifeCycleState();
+  _PlayerLifeCycleState createState() => new _PlayerLifeCycleState();
 }
 
-/// A widget connecting its life cycle to a [VideoPlayerController] using
-/// an asset as data source
-class AssetPlayerLifeCycle extends PlayerLifeCycle {
-  AssetPlayerLifeCycle(String dataSource, VideoWidgetBuilder childBuilder)
-      : super(dataSource, childBuilder);
-
-  @override
-  _AssetPlayerLifeCycleState createState() => new _AssetPlayerLifeCycleState();
-}
-
-abstract class _PlayerLifeCycleState extends State<PlayerLifeCycle> {
+class _PlayerLifeCycleState extends State<PlayerLifeCycle> {
   VideoPlayerController controller;
 
-  @override
+  _PlayerLifeCycleState();
 
-  /// Subclasses should implement [createVideoPlayerController], which is used
-  /// by this method.
+  @override
   void initState() {
     super.initState();
-    controller = createVideoPlayerController();
+    controller = new VideoPlayerController(widget.uri);
     controller.addListener(() {
       if (controller.value.hasError) {
         print(controller.value.errorDescription);
@@ -213,22 +195,6 @@ abstract class _PlayerLifeCycleState extends State<PlayerLifeCycle> {
   @override
   Widget build(BuildContext context) {
     return widget.childBuilder(context, controller);
-  }
-
-  VideoPlayerController createVideoPlayerController();
-}
-
-class _NetworkPlayerLifeCycleState extends _PlayerLifeCycleState {
-  @override
-  VideoPlayerController createVideoPlayerController() {
-    return new VideoPlayerController.network(widget.dataSource);
-  }
-}
-
-class _AssetPlayerLifeCycleState extends _PlayerLifeCycleState {
-  @override
-  VideoPlayerController createVideoPlayerController() {
-    return new VideoPlayerController.asset(widget.dataSource);
   }
 }
 
@@ -359,23 +325,23 @@ void main() {
         child: new Scaffold(
           appBar: new AppBar(
             title: const Text('Video player example'),
-            bottom: const TabBar(
+            bottom: new TabBar(
               isScrollable: true,
-              tabs: const <Widget>[
-                const Tab(icon: const Icon(Icons.fullscreen)),
-                const Tab(icon: const Icon(Icons.list)),
+              tabs: <Widget>[
+                new Tab(icon: new Icon(Icons.fullscreen)),
+                new Tab(icon: new Icon(Icons.list)),
               ],
             ),
           ),
           body: new TabBarView(
             children: <Widget>[
-              new NetworkPlayerLifeCycle(
+              new PlayerLifeCycle(
                 'http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_20mb.mp4',
                 (BuildContext context, VideoPlayerController controller) =>
                     new AspectRatioVideo(controller),
               ),
-              new AssetPlayerLifeCycle(
-                  'assets/Butterfly-209.mp4',
+              new PlayerLifeCycle(
+                  'http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_20mb.mp4',
                   (BuildContext context, VideoPlayerController controller) =>
                       new VideoInListOfCards(controller)),
             ],

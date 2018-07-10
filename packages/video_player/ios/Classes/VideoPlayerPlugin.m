@@ -6,6 +6,13 @@
 #import <AVFoundation/AVFoundation.h>
 
 int64_t FLTCMTimeToMillis(CMTime time) { return time.value * 1000 / time.timescale; }
+static inline CGFloat RadiansToDegrees(CGFloat radians) {
+    return radians * 180 / M_PI;
+};
+
+static inline CGFloat DegreesToRadians(CGFloat deg) {
+    return deg / 180 * M_PI;
+};
 
 @interface FLTFrameUpdater : NSObject
 @property(nonatomic) int64_t textureId;
@@ -48,11 +55,6 @@ static void* statusContext = &statusContext;
 static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
 
 @implementation FLTVideoPlayer
-- (instancetype)initWithAsset:(NSString*)asset frameUpdater:(FLTFrameUpdater*)frameUpdater {
-  NSString* path = [[NSBundle mainBundle] pathForResource:asset ofType:nil];
-  return [self initWithURL:[NSURL fileURLWithPath:path] frameUpdater:frameUpdater];
-}
-
 - (instancetype)initWithURL:(NSURL*)url frameUpdater:(FLTFrameUpdater*)frameUpdater {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
@@ -99,18 +101,51 @@ static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
     if ([asset statusOfValueForKey:@"tracks" error:nil] == AVKeyValueStatusLoaded) {
       NSArray* tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
       if ([tracks count] > 0) {
-        AVAssetTrack* videoTrack = [tracks objectAtIndex:0];
-        void (^trackCompletionHandler)(void) = ^{
-          if (_disposed) return;
-          if ([videoTrack statusOfValueForKey:@"preferredTransform" error:nil] ==
-              AVKeyValueStatusLoaded) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-              [_player replaceCurrentItemWithPlayerItem:item];
-            });
+
+          AVAssetTrack* videoTrack    = [tracks objectAtIndex:0];
+          CGAffineTransform txf       = [videoTrack preferredTransform];
+          CGFloat videoAngleInDegree  = RadiansToDegrees(atan2(txf.b, txf.a));
+          NSLog(@"Preferred angle %f", videoAngleInDegree);
+
+          
+          AVMutableComposition *composition = [AVMutableComposition composition];
+          
+          
+          AVMutableCompositionTrack *compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo
+                                                                                      preferredTrackID:kCMPersistentTrackID_Invalid];
+          [compositionVideoTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, asset.duration)
+                                         ofTrack:videoTrack
+                                          atTime:kCMTimeZero error:nil];
+
+          CGFloat rotation = 0.0f;
+          if (videoAngleInDegree) {
+              rotation = videoAngleInDegree;
           }
-        };
-        [videoTrack loadValuesAsynchronouslyForKeys:@[ @"preferredTransform" ]
-                                  completionHandler:trackCompletionHandler];
+          
+            if (rotation) {
+                [FLTVideoPlayer rotateAsset:asset fileName:[url lastPathComponent] withDegrees:rotation completion:^(AVPlayerItem *item) {
+                    [item addObserver:self
+                    forKeyPath:@"loadedTimeRanges"
+                    options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+                    context:timeRangeContext];
+                    [item addObserver:self
+                    forKeyPath:@"status"
+                    options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+                    context:statusContext];
+                    [item addObserver:self
+                    forKeyPath:@"playbackLikelyToKeepUp"
+                    options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+                    context:playbackLikelyToKeepUpContext];
+
+                    [self.player replaceCurrentItemWithPlayerItem:item];
+                }];
+            } else {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.player replaceCurrentItemWithPlayerItem:item];
+                });
+                return;
+            }
+
       }
     }
   };
@@ -254,14 +289,192 @@ static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
   [_eventChannel setStreamHandler:nil];
 }
 
++ (void)rotateAsset:(AVAsset *)asset fileName:(NSString *)fileName withDegrees:(float)degrees completion:(void (^)(AVPlayerItem *item))completion {
+    
+    AVMutableComposition *composition;
+    AVMutableVideoComposition *videoComposition;
+    AVMutableVideoCompositionInstruction * instruction;
+    
+    AVMutableVideoCompositionLayerInstruction *layerInstruction = nil;
+    CGAffineTransform t1;
+    CGAffineTransform t2;
+    AVAssetTrack *assetVideoTrack = nil;
+    AVAssetTrack *assetAudioTrack = nil;
+    // Check if the asset contains video and audio tracks
+    if ([[asset tracksWithMediaType:AVMediaTypeVideo] count] != 0) {
+        assetVideoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
+    }
+    if ([[asset tracksWithMediaType:AVMediaTypeAudio] count] != 0) {
+        assetAudioTrack = [[asset tracksWithMediaType:AVMediaTypeAudio] objectAtIndex:0];
+    }
+    CMTime insertionPoint = kCMTimeInvalid;
+    NSError *error = nil;
+    
+    
+    // Step 1
+    // Create a new composition
+    composition = [AVMutableComposition composition];
+    // Insert the video and audio tracks from AVAsset
+    if (assetVideoTrack != nil) {
+        AVMutableCompositionTrack *compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
+        [compositionVideoTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, [asset duration]) ofTrack:assetVideoTrack atTime:insertionPoint error:&error];
+    }
+    if (assetAudioTrack != nil) {
+        AVMutableCompositionTrack *compositionAudioTrack = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+        [compositionAudioTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, [asset duration]) ofTrack:assetAudioTrack atTime:insertionPoint error:&error];
+    }
+    
+    
+    
+    
+    // Step 2
+    // Calculate position and size of render video after rotating
+    
+    
+    float width=assetVideoTrack.naturalSize.width;
+    float height=assetVideoTrack.naturalSize.height;
+    float toDiagonal=sqrt(width*width+height*height);
+    float toDiagonalAngle=RadiansToDegrees(acosf(width/toDiagonal));
+    float toDiagonalAngle2=90-RadiansToDegrees(acosf(width/toDiagonal));
+    
+    float toDiagonalAngleComple = 0;
+    float toDiagonalAngleComple2 = 0;
+    float finalHeight = 0;
+    float finalWidth = 0;
+    
+    
+    if(degrees>=0&&degrees<=90){
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        
+        t1 = CGAffineTransformMakeTranslation(height*sinf(DegreesToRadians(degrees)), 0.0);
+    }
+    else if(degrees>90&&degrees<=180){
+        
+        float degrees2 = degrees-90;
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees2;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees2;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        
+        t1 = CGAffineTransformMakeTranslation(width*sinf(DegreesToRadians(degrees2))+height*cosf(DegreesToRadians(degrees2)), height*sinf(DegreesToRadians(degrees2)));
+    }
+    else if(degrees>=-90&&degrees<0){
+        
+        float degrees2 = degrees-90;
+        float degreesabs = ABS(degrees);
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees2;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees2;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        
+        t1 = CGAffineTransformMakeTranslation(0, width*sinf(DegreesToRadians(degreesabs)));
+        
+    }
+    else if(degrees>=-180&&degrees<-90){
+        
+        float degreesabs = ABS(degrees);
+        float degreesplus = degreesabs-90;
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        
+        t1 = CGAffineTransformMakeTranslation(width*sinf(DegreesToRadians(degreesplus)), height*sinf(DegreesToRadians(degreesplus))+width*cosf(DegreesToRadians(degreesplus)));
+        
+    }
+    
+    
+    // Rotate transformation
+    t2 = CGAffineTransformRotate(t1, DegreesToRadians(degrees));
+    
+    
+    // Step 3
+    // Set the appropriate render sizes and rotational transforms
+    
+    
+    // Create a new video composition
+    videoComposition = [AVMutableVideoComposition videoComposition];
+    videoComposition.renderSize = CGSizeMake(finalWidth,finalHeight);
+    videoComposition.frameDuration = CMTimeMake(1, 30);
+    
+    // The rotate transform is set on a layer instruction
+    instruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+    
+    instruction.timeRange = CMTimeRangeMake(kCMTimeZero, [composition duration]);
+    
+    layerInstruction = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:[composition.tracks objectAtIndex:0]];
+    [layerInstruction setTransform:t2 atTime:kCMTimeZero];
+    
+    
+    
+    // Step  4
+    
+    // Add the transform instructions to the video composition
+    
+    instruction.layerInstructions = [NSArray arrayWithObject:layerInstruction];
+    videoComposition.instructions = [NSArray arrayWithObject:instruction];
+    
+    
+    AVPlayerItem *playerItem_ = [[AVPlayerItem alloc] initWithAsset:composition];
+    playerItem_.videoComposition = videoComposition;
+    
+    
+    
+    CMTime time;
+    
+    
+    time=kCMTimeZero;
+    //Export rotated video to the file
+    
+    AVAssetExportSession *exportSession = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetMediumQuality] ;
+    exportSession.outputFileType = AVFileTypeMPEG4;
+    exportSession.videoComposition = videoComposition;
+    exportSession.shouldOptimizeForNetworkUse = YES;
+    exportSession.timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration);
+    
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    NSString *outputURL = paths[0];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    [manager createDirectoryAtPath:outputURL withIntermediateDirectories:YES attributes:nil error:nil];
+    outputURL = [outputURL stringByAppendingPathComponent:fileName];
+    
+    if ([manager fileExistsAtPath:outputURL]) {
+        AVPlayerItem* item = [AVPlayerItem playerItemWithURL:[NSURL fileURLWithPath:outputURL]];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion(item);
+        });
+    } else {
+        exportSession.outputFileType = AVFileTypeQuickTimeMovie;
+        exportSession.outputURL = [NSURL fileURLWithPath:outputURL];
+        
+        
+        [exportSession exportAsynchronouslyWithCompletionHandler:^{
+            AVPlayerItem* item = [AVPlayerItem playerItemWithURL:[NSURL fileURLWithPath:outputURL]];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(item);
+            });
+        }];
+    }
+}
+
+
 @end
 
 @interface FLTVideoPlayerPlugin ()
 @property(readonly, nonatomic) NSObject<FlutterTextureRegistry>* registry;
 @property(readonly, nonatomic) NSObject<FlutterBinaryMessenger>* messenger;
 @property(readonly, nonatomic) NSMutableDictionary* players;
-@property(readonly, nonatomic) NSObject<FlutterPluginRegistrar>* registrar;
-
 @end
 
 @implementation FLTVideoPlayerPlugin
@@ -269,16 +482,18 @@ static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
   FlutterMethodChannel* channel =
       [FlutterMethodChannel methodChannelWithName:@"flutter.io/videoPlayer"
                                   binaryMessenger:[registrar messenger]];
-  FLTVideoPlayerPlugin* instance = [[FLTVideoPlayerPlugin alloc] initWithRegistrar:registrar];
+  FLTVideoPlayerPlugin* instance =
+      [[FLTVideoPlayerPlugin alloc] initWithRegistry:[registrar textures]
+                                           messenger:[registrar messenger]];
   [registrar addMethodCallDelegate:instance channel:channel];
 }
 
-- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+- (instancetype)initWithRegistry:(NSObject<FlutterTextureRegistry>*)registry
+                       messenger:(NSObject<FlutterBinaryMessenger>*)messenger {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
-  _registry = [registrar textures];
-  _messenger = [registrar messenger];
-  _registrar = registrar;
+  _registry = registry;
+  _messenger = messenger;
   _players = [NSMutableDictionary dictionaryWithCapacity:1];
   return self;
 }
@@ -292,23 +507,10 @@ static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
     [_players removeAllObjects];
   } else if ([@"create" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
+    NSString* dataSource = argsMap[@"dataSource"];
     FLTFrameUpdater* frameUpdater = [[FLTFrameUpdater alloc] initWithRegistry:_registry];
-    NSString* dataSource = argsMap[@"asset"];
-    FLTVideoPlayer* player;
-    if (dataSource) {
-      NSString* assetPath;
-      NSString* package = argsMap[@"package"];
-      if (![package isEqual:[NSNull null]]) {
-        assetPath = [_registrar lookupKeyForAsset:dataSource fromPackage:package];
-      } else {
-        assetPath = [_registrar lookupKeyForAsset:dataSource];
-      }
-      player = [[FLTVideoPlayer alloc] initWithAsset:assetPath frameUpdater:frameUpdater];
-    } else {
-      dataSource = argsMap[@"uri"];
-      player = [[FLTVideoPlayer alloc] initWithURL:[NSURL URLWithString:dataSource]
-                                      frameUpdater:frameUpdater];
-    }
+    FLTVideoPlayer* player = [[FLTVideoPlayer alloc] initWithURL:[NSURL URLWithString:dataSource]
+                                                    frameUpdater:frameUpdater];
     int64_t textureId = [_registry registerTexture:player];
     frameUpdater.textureId = textureId;
     FlutterEventChannel* eventChannel = [FlutterEventChannel
@@ -328,7 +530,7 @@ static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
       [_players removeObjectForKey:@(textureId)];
       [player dispose];
     } else if ([@"setLooping" isEqualToString:call.method]) {
-      [player setIsLooping:[argsMap objectForKey:@"looping"]];
+      [player setIsLooping:[[argsMap objectForKey:@"looping"] boolValue]];
       result(nil);
     } else if ([@"setVolume" isEqualToString:call.method]) {
       [player setVolume:[[argsMap objectForKey:@"volume"] doubleValue]];
@@ -349,5 +551,7 @@ static void* playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
     }
   }
 }
+
+
 
 @end

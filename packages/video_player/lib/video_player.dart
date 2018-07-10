@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -121,8 +120,6 @@ class VideoPlayerValue {
   }
 }
 
-enum DataSourceType { asset, network, file }
-
 /// Controls a platform video player, and provides updates when the state is
 /// changing.
 ///
@@ -135,67 +132,22 @@ enum DataSourceType { asset, network, file }
 /// After [dispose] all further calls are ignored.
 class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   int _textureId;
-  final String dataSource;
-
-  /// Describes the type of data source this [VideoPlayerController]
-  /// is constructed with.
-  final DataSourceType dataSourceType;
-
-  String package;
+  final String uri;
   Timer timer;
   bool isDisposed = false;
   Completer<Null> _creatingCompleter;
   StreamSubscription<dynamic> _eventSubscription;
   _VideoAppLifeCycleObserver _lifeCycleObserver;
 
-  /// Constructs a [VideoPlayerController] playing a video from an asset.
-  ///
-  /// The name of the asset is given by the [dataSource] argument and must not be
-  /// null. The [package] argument must be non-null when the asset comes from a
-  /// package and null otherwise.
-  VideoPlayerController.asset(this.dataSource, {this.package})
-      : dataSourceType = DataSourceType.asset,
-        super(new VideoPlayerValue(duration: null));
-
-  /// Constructs a [VideoPlayerController] playing a video from obtained from
-  /// the network.
-  ///
-  /// The URI for the video is given by the [dataSource] argument and must not be
-  /// null.
-  VideoPlayerController.network(this.dataSource)
-      : dataSourceType = DataSourceType.network,
-        super(new VideoPlayerValue(duration: null));
-
-  /// Constructs a [VideoPlayerController] playing a video from a file.
-  ///
-  /// This will load the file from the file-URI given by:
-  /// `'file://${file.path}'`.
-  VideoPlayerController.file(File file)
-      : dataSource = 'file://${file.path}',
-        dataSourceType = DataSourceType.file,
-        super(new VideoPlayerValue(duration: null));
+  VideoPlayerController(this.uri) : super(new VideoPlayerValue(duration: null));
 
   Future<Null> initialize() async {
     _lifeCycleObserver = new _VideoAppLifeCycleObserver(this);
     _lifeCycleObserver.initialize();
     _creatingCompleter = new Completer<Null>();
-    Map<dynamic, dynamic> dataSourceDescription;
-    switch (dataSourceType) {
-      case DataSourceType.asset:
-        dataSourceDescription = <String, dynamic>{
-          'asset': dataSource,
-          'package': package
-        };
-        break;
-      case DataSourceType.network:
-        dataSourceDescription = <String, dynamic>{'uri': dataSource};
-        break;
-      case DataSourceType.file:
-        dataSourceDescription = <String, dynamic>{'uri': dataSource};
-    }
     final Map<dynamic, dynamic> response = await _channel.invokeMethod(
       'create',
-      dataSourceDescription,
+      <String, dynamic>{'dataSource': uri},
     );
     _textureId = response['textureId'];
     _creatingCompleter.complete(null);
