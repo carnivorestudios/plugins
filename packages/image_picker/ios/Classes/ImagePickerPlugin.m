@@ -93,12 +93,12 @@ static const int SELECT_MODE_MULTI = 1;
 
   UIAlertController *alert =
       [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:style];
-  UIAlertAction *camera = [UIAlertAction actionWithTitle:@"Take Photo"
+  UIAlertAction *camera = [UIAlertAction actionWithTitle:@"Take Photo or Video"
                                                    style:UIAlertActionStyleDefault
                                                  handler:^(UIAlertAction *action) {
                                                    [self showCamera];
                                                  }];
-  UIAlertAction *library = [UIAlertAction actionWithTitle:@"Choose Photo"
+  UIAlertAction *library = [UIAlertAction actionWithTitle:@"Choose Photo or Video"
                                                     style:UIAlertActionStyleDefault
                                                   handler:^(UIAlertAction *action) {
                                                     [self showPhotoLibrary];
@@ -308,13 +308,14 @@ static const int SELECT_MODE_MULTI = 1;
   NSURL *tmpDirectory = [NSFileManager defaultManager].temporaryDirectory;
   NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
   exportSession.outputURL = outputURL;
-  AVAssetTrack *videoTrack = [asset tracksWithMediaType:AVMediaTypeVideo];
+  AVAssetTrack *videoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] lastObject];
   exportSession.videoComposition = [AVMutableVideoComposition videoCompositionWithPropertiesOfAsset:asset];
+  CGSize size = [videoTrack naturalSize];
   [exportSession exportAsynchronouslyWithCompletionHandler:^{
-    [self finishResultWithPath:outputURL.path size: videoTrack.naturalSize index:index];
-    if (originalURL != nil) {
-      [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
-    }
+      [self finishResultWithPath:outputURL.path size:size index:index];
+      if (originalURL != nil) {
+          [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
+      }
   }];
 }
 
