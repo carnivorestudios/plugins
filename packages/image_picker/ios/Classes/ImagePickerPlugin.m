@@ -9,6 +9,14 @@
 #import <QBImagePickerController/QBImagePickerController.h>
 #import <MobileCoreServices/MobileCoreServices.h>
 
+static inline CGFloat RadiansToDegrees(CGFloat radians) {
+    return radians * 180 / M_PI;
+};
+
+static inline CGFloat DegreesToRadians(CGFloat deg) {
+    return deg / 180 * M_PI;
+};
+
 @interface FLTImagePickerPlugin ()<UINavigationControllerDelegate, UIImagePickerControllerDelegate, QBImagePickerControllerDelegate>
 @end
 
@@ -309,14 +317,15 @@ static const int SELECT_MODE_MULTI = 1;
   NSURL *outputURL = [tmpDirectory URLByAppendingPathComponent:fileName];
   exportSession.outputURL = outputURL;
   AVAssetTrack *videoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] lastObject];
-  exportSession.videoComposition = [AVMutableVideoComposition videoCompositionWithPropertiesOfAsset:asset];
-  CGSize size = [videoTrack naturalSize];
-  [exportSession exportAsynchronouslyWithCompletionHandler:^{
-      [self finishResultWithPath:outputURL.path size:size index:index];
-      if (originalURL != nil) {
-          [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
-      }
-  }];
+    CGAffineTransform txf       = [videoTrack preferredTransform];
+    CGFloat videoAngleInDegree  = RadiansToDegrees(atan2(txf.b, txf.a));
+    CGSize naturalSize = [videoTrack naturalSize];
+    [[self class] rotateAsset:asset fileName:[outputURL lastPathComponent] withDegrees:videoAngleInDegree completion:^(NSURL *itemURL, CGSize size) {
+        [self finishResultWithPath:itemURL size:size index:index];
+        if (originalURL != nil) {
+            [[NSFileManager defaultManager] removeItemAtURL:originalURL error:nil];
+        }
+    }];
 }
 
 - (void)finishResultWithPath:(NSString *)resultPath size:(CGSize)size index:(NSUInteger)index {
@@ -444,5 +453,183 @@ static const int SELECT_MODE_MULTI = 1;
 
   return scaledImage;
 }
+
++ (void)rotateAsset:(AVAsset *)asset fileName:(NSString *)fileName withDegrees:(float)degrees completion:(void (^)(NSURL *itemURL, CGSize finalSize))completion {
+    
+    AVMutableComposition *composition;
+    AVMutableVideoComposition *videoComposition;
+    AVMutableVideoCompositionInstruction * instruction;
+    
+    AVMutableVideoCompositionLayerInstruction *layerInstruction = nil;
+    CGAffineTransform t1;
+    CGAffineTransform t2;
+    AVAssetTrack *assetVideoTrack = nil;
+    AVAssetTrack *assetAudioTrack = nil;
+    // Check if the asset contains video and audio tracks
+    if ([[asset tracksWithMediaType:AVMediaTypeVideo] count] != 0) {
+        assetVideoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
+    }
+    if ([[asset tracksWithMediaType:AVMediaTypeAudio] count] != 0) {
+        assetAudioTrack = [[asset tracksWithMediaType:AVMediaTypeAudio] objectAtIndex:0];
+    }
+    CMTime insertionPoint = kCMTimeInvalid;
+    NSError *error = nil;
+    
+    
+    // Step 1
+    // Create a new composition
+    composition = [AVMutableComposition composition];
+    // Insert the video and audio tracks from AVAsset
+    if (assetVideoTrack != nil) {
+        AVMutableCompositionTrack *compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
+        [compositionVideoTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, [asset duration]) ofTrack:assetVideoTrack atTime:insertionPoint error:&error];
+    }
+    if (assetAudioTrack != nil) {
+        AVMutableCompositionTrack *compositionAudioTrack = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+        [compositionAudioTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, [asset duration]) ofTrack:assetAudioTrack atTime:insertionPoint error:&error];
+    }
+    
+    
+    
+    
+    // Step 2
+    // Calculate position and size of render video after rotating
+    
+    
+    float width=assetVideoTrack.naturalSize.width;
+    float height=assetVideoTrack.naturalSize.height;
+    float toDiagonal=sqrt(width*width+height*height);
+    float toDiagonalAngle=RadiansToDegrees(acosf(width/toDiagonal));
+    float toDiagonalAngle2=90-RadiansToDegrees(acosf(width/toDiagonal));
+    
+    float toDiagonalAngleComple = 0;
+    float toDiagonalAngleComple2 = 0;
+    float finalHeight = 0;
+    float finalWidth = 0;
+    
+    
+    if(degrees>=0&&degrees<=90){
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        
+        t1 = CGAffineTransformMakeTranslation(height*sinf(DegreesToRadians(degrees)), 0.0);
+    }
+    else if(degrees>90&&degrees<=180){
+        
+        float degrees2 = degrees-90;
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees2;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees2;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        
+        t1 = CGAffineTransformMakeTranslation(width*sinf(DegreesToRadians(degrees2))+height*cosf(DegreesToRadians(degrees2)), height*sinf(DegreesToRadians(degrees2)));
+    }
+    else if(degrees>=-90&&degrees<0){
+        
+        float degrees2 = degrees-90;
+        float degreesabs = ABS(degrees);
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees2;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees2;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        
+        t1 = CGAffineTransformMakeTranslation(0, width*sinf(DegreesToRadians(degreesabs)));
+        
+    }
+    else if(degrees>=-180&&degrees<-90){
+        
+        float degreesabs = ABS(degrees);
+        float degreesplus = degreesabs-90;
+        
+        toDiagonalAngleComple=toDiagonalAngle+degrees;
+        toDiagonalAngleComple2=toDiagonalAngle2+degrees;
+        
+        finalHeight=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple)));
+        finalWidth=ABS(toDiagonal*sinf(DegreesToRadians(toDiagonalAngleComple2)));
+        
+        t1 = CGAffineTransformMakeTranslation(width*sinf(DegreesToRadians(degreesplus)), height*sinf(DegreesToRadians(degreesplus))+width*cosf(DegreesToRadians(degreesplus)));
+        
+    }
+    
+    
+    // Rotate transformation
+    t2 = CGAffineTransformRotate(t1, DegreesToRadians(degrees));
+    
+    
+    // Step 3
+    // Set the appropriate render sizes and rotational transforms
+    
+    
+    // Create a new video composition
+    videoComposition = [AVMutableVideoComposition videoComposition];
+    videoComposition.renderSize = CGSizeMake(finalWidth,finalHeight);
+    videoComposition.frameDuration = CMTimeMake(1, 30);
+    
+    // The rotate transform is set on a layer instruction
+    instruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+    
+    instruction.timeRange = CMTimeRangeMake(kCMTimeZero, [composition duration]);
+    
+    layerInstruction = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:[composition.tracks objectAtIndex:0]];
+    [layerInstruction setTransform:t2 atTime:kCMTimeZero];
+    
+    
+    
+    // Step  4
+    
+    // Add the transform instructions to the video composition
+    
+    instruction.layerInstructions = [NSArray arrayWithObject:layerInstruction];
+    videoComposition.instructions = [NSArray arrayWithObject:instruction];
+    
+    
+    AVPlayerItem *playerItem_ = [[AVPlayerItem alloc] initWithAsset:composition];
+    playerItem_.videoComposition = videoComposition;
+    
+    
+    
+    CMTime time;
+    
+    
+    time=kCMTimeZero;
+    //Export rotated video to the file
+    
+    AVAssetExportSession *exportSession = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetMediumQuality] ;
+    exportSession.outputFileType = AVFileTypeMPEG4;
+    exportSession.videoComposition = videoComposition;
+    exportSession.shouldOptimizeForNetworkUse = YES;
+    exportSession.timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration);
+    
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    NSString *outputURL = paths[0];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    [manager createDirectoryAtPath:outputURL withIntermediateDirectories:YES attributes:nil error:nil];
+    outputURL = [outputURL stringByAppendingPathComponent:fileName];
+    
+    [manager removeItemAtPath:outputURL error:nil];
+    CGSize size = CGSizeMake(finalWidth, finalHeight);
+    if ([manager fileExistsAtPath:outputURL]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion(outputURL, size);
+        });
+    } else {
+        exportSession.outputFileType = AVFileTypeQuickTimeMovie;
+        exportSession.outputURL = [NSURL fileURLWithPath:outputURL];
+        [exportSession exportAsynchronouslyWithCompletionHandler:^{
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(outputURL, size);
+            });
+        }];
+    }
+}
+
 
 @end
